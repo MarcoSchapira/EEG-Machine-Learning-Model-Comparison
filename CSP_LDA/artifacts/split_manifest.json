@@ -1,0 +1,265 @@
+{
+  "random_seed": 42,
+  "n_splits": 5,
+  "schemes": [
+    "stratified5",
+    "lofo"
+  ],
+  "y_hash": "fb73f7b8f3818cbbb446e6a75eadeade999f7c5b77a09896c12cd00a28d3daf3",
+  "n_trials": 7500,
+  "n_classes": 6,
+  "class_counts": {
+    "Forward": 1250,
+    "Backward": 1250,
+    "Left": 1250,
+    "Right": 1250,
+    "Up": 1250,
+    "Down": 1250
+  },
+  "file_ids": [
+    "sub10_session1_reaching",
+    "sub11_session1_reaching",
+    "sub12_session1_reaching",
+    "sub13_session1_reaching",
+    "sub14_session1_reaching",
+    "sub15_session1_reaching",
+    "sub16_session1_reaching",
+    "sub17_session1_reaching",
+    "sub18_session1_reaching",
+    "sub19_session1_reaching",
+    "sub1_session1_reaching",
+    "sub20_session1_reaching",
+    "sub21_session1_reaching",
+    "sub22_session1_reaching",
+    "sub23_session1_reaching",
+    "sub24_session1_reaching",
+    "sub25_session1_reaching",
+    "sub2_session1_reaching",
+    "sub3_session1_reaching",
+    "sub4_session1_reaching",
+    "sub5_session1_reaching",
+    "sub6_session1_reaching",
+    "sub7_session1_reaching",
+    "sub8_session1_reaching",
+    "sub9_session1_reaching"
+  ],
+  "n_files": 25,
+  "paradigm": "reach",
+  "split_info": {
+    "stratified5": {
+      "n_folds": 5,
+      "fold_summary": [
+        {
+          "n_train": 6000,
+          "n_val": 1500,
+          "train_classes": 6,
+          "val_classes": 6
+        },
+        {
+          "n_train": 6000,
+          "n_val": 1500,
+          "train_classes": 6,
+          "val_classes": 6
+        },
+        {
+          "n_train": 6000,
+          "n_val": 1500,
+          "train_classes": 6,
+          "val_classes": 6
+        },
+        {
+          "n_train": 6000,
+          "n_val": 1500,
+          "train_classes": 6,
+          "val_classes": 6
+        },
+        {
+          "n_train": 6000,
+          "n_val": 1500,
+          "train_classes": 6,
+          "val_classes": 6
+        }
+      ]
+    },
+    "lofo": {
+      "n_folds": 25,
+      "fold_summary": [
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub10_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub11_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub12_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub13_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub14_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub15_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub16_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub17_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub18_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub19_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub1_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub20_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub21_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub22_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub23_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub24_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub25_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub2_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub3_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub4_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub5_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub6_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub7_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub8_session1_reaching"
+        },
+        {
+          "n_train": 7200,
+          "n_val": 300,
+          "train_classes": 6,
+          "val_classes": 6,
+          "file_id": "sub9_session1_reaching"
+        }
+      ]
+    }
+  }
+}

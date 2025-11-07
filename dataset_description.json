@@ -1,0 +1,433 @@
+{
+  "dataset_description": "The data set is acquired by cue information. Each session includes cues stored as trigger codes.",
+  "channel_types": {
+    "EEG": {
+      "channels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64
+      ]
+    },
+    "EOG": {
+      "channels": [
+        32,
+        33,
+        34,
+        35
+      ]
+    },
+    "EMG": {
+      "channels": [
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71
+      ]
+    }
+  },
+  "triggers": {
+    "arm_reaching": {
+      "classes": [
+        "Forward",
+        "Backward",
+        "Left",
+        "Right",
+        "Up",
+        "Down",
+        "Rest"
+      ],
+      "codes": [
+        "S 11",
+        "S 21",
+        "S 31",
+        "S 41",
+        "S 51",
+        "S 61",
+        "S 8"
+      ]
+    },
+    "hand_grasping": {
+      "classes": [
+        "Cup",
+        "Ball",
+        "Card",
+        "Rest"
+      ],
+      "codes": [
+        "S 11",
+        "S 21",
+        "S 61",
+        "S 8"
+      ]
+    },
+    "wrist_twisting": {
+      "classes": [
+        "Pronation",
+        "Supination",
+        "Rest"
+      ],
+      "codes": [
+        "S 91",
+        "S 101",
+        "S 8"
+      ]
+    },
+    "experiment_markers": {
+      "classes": [
+        "Start",
+        "End"
+      ],
+      "codes": [
+        "S 13",
+        "S 14"
+      ]
+    }
+  },
+  "channel_labels": [
+    {
+      "ch": 1,
+      "label": "Fp1"
+    },
+    {
+      "ch": 2,
+      "label": "AF7"
+    },
+    {
+      "ch": 3,
+      "label": "AF3"
+    },
+    {
+      "ch": 4,
+      "label": "AFz"
+    },
+    {
+      "ch": 5,
+      "label": "F7"
+    },
+    {
+      "ch": 6,
+      "label": "F5"
+    },
+    {
+      "ch": 7,
+      "label": "F3"
+    },
+    {
+      "ch": 8,
+      "label": "F1"
+    },
+    {
+      "ch": 9,
+      "label": "Fz"
+    },
+    {
+      "ch": 10,
+      "label": "FT7"
+    },
+    {
+      "ch": 11,
+      "label": "FC5"
+    },
+    {
+      "ch": 12,
+      "label": "FC3"
+    },
+    {
+      "ch": 13,
+      "label": "FC1"
+    },
+    {
+      "ch": 14,
+      "label": "T7"
+    },
+    {
+      "ch": 15,
+      "label": "C5"
+    },
+    {
+      "ch": 16,
+      "label": "C3"
+    },
+    {
+      "ch": 17,
+      "label": "C1"
+    },
+    {
+      "ch": 18,
+      "label": "Cz"
+    },
+    {
+      "ch": 19,
+      "label": "TP7"
+    },
+    {
+      "ch": 20,
+      "label": "CP5"
+    },
+    {
+      "ch": 21,
+      "label": "CP3"
+    },
+    {
+      "ch": 22,
+      "label": "CP1"
+    },
+    {
+      "ch": 23,
+      "label": "CPz"
+    },
+    {
+      "ch": 24,
+      "label": "P7"
+    },
+    {
+      "ch": 25,
+      "label": "P5"
+    },
+    {
+      "ch": 26,
+      "label": "P3"
+    },
+    {
+      "ch": 27,
+      "label": "P1"
+    },
+    {
+      "ch": 28,
+      "label": "Pz"
+    },
+    {
+      "ch": 29,
+      "label": "PO7"
+    },
+    {
+      "ch": 30,
+      "label": "PO3"
+    },
+    {
+      "ch": 31,
+      "label": "POz"
+    },
+    {
+      "ch": 32,
+      "label": "EOG_1"
+    },
+    {
+      "ch": 33,
+      "label": "EOG_2"
+    },
+    {
+      "ch": 34,
+      "label": "EOG_3"
+    },
+    {
+      "ch": 35,
+      "label": "EOG_4"
+    },
+    {
+      "ch": 36,
+      "label": "Fp2"
+    },
+    {
+      "ch": 37,
+      "label": "AF4"
+    },
+    {
+      "ch": 38,
+      "label": "AF8"
+    },
+    {
+      "ch": 39,
+      "label": "F2"
+    },
+    {
+      "ch": 40,
+      "label": "F4"
+    },
+    {
+      "ch": 41,
+      "label": "F6"
+    },
+    {
+      "ch": 42,
+      "label": "F8"
+    },
+    {
+      "ch": 43,
+      "label": "FC2"
+    },
+    {
+      "ch": 44,
+      "label": "FC4"
+    },
+    {
+      "ch": 45,
+      "label": "FC6"
+    },
+    {
+      "ch": 46,
+      "label": "FT8"
+    },
+    {
+      "ch": 47,
+      "label": "C2"
+    },
+    {
+      "ch": 48,
+      "label": "C4"
+    },
+    {
+      "ch": 49,
+      "label": "C6"
+    },
+    {
+      "ch": 50,
+      "label": "T8"
+    },
+    {
+      "ch": 51,
+      "label": "CP2"
+    },
+    {
+      "ch": 52,
+      "label": "CP4"
+    },
+    {
+      "ch": 53,
+      "label": "CP6"
+    },
+    {
+      "ch": 54,
+      "label": "TP8"
+    },
+    {
+      "ch": 55,
+      "label": "P2"
+    },
+    {
+      "ch": 56,
+      "label": "P4"
+    },
+    {
+      "ch": 57,
+      "label": "P6"
+    },
+    {
+      "ch": 58,
+      "label": "P8"
+    },
+    {
+      "ch": 59,
+      "label": "PO4"
+    },
+    {
+      "ch": 60,
+      "label": "PO8"
+    },
+    {
+      "ch": 61,
+      "label": "O1"
+    },
+    {
+      "ch": 62,
+      "label": "Oz"
+    },
+    {
+      "ch": 63,
+      "label": "O2"
+    },
+    {
+      "ch": 64,
+      "label": "Iz"
+    },
+    {
+      "ch": 65,
+      "label": "EMG_1"
+    },
+    {
+      "ch": 66,
+      "label": "EMG_2"
+    },
+    {
+      "ch": 67,
+      "label": "EMG_3"
+    },
+    {
+      "ch": 68,
+      "label": "EMG_4"
+    },
+    {
+      "ch": 69,
+      "label": "EMG_5"
+    },
+    {
+      "ch": 70,
+      "label": "EMG_6"
+    },
+    {
+      "ch": 71,
+      "label": "EMG_Ref"
+    }
+  ],
+  "notes": "If you want to download the .mat file version of the data, you can obtain it from the Converted data section (as referenced in the original document)."
+}
