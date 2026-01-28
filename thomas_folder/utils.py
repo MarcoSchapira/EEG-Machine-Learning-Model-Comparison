@@ -267,6 +267,8 @@ def numberClassChannel(database_type):
 #The following code is derived from this open-source code：https://github.com/eeyhsong/EEG-Conformer/blob/main/visualization/utils.py
 #
 
+#! not used
+
 class ActivationsAndGradients:
     """ Class for extracting activations and
     registering gradients from targeted intermediate layers """
