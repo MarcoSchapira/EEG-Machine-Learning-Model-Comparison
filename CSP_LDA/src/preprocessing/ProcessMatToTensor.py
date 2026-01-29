@@ -4,6 +4,12 @@ import torch
 import scipy.io as sio
 from tqdm import tqdm # A progress bar, install with: pip install tqdm
 
+
+
+#!#######################################################
+#! NOT USED
+#!#######################################################
+
 # --- Configuration ---
 MAT_DATA_DIR = "D:/EEG Data/EEG_11/EEG_Compact"  # <-- Your .mat file directory
 PREPROCESSED_DIR = "D:/EEG Data/EEG_11/EEG_Python"      # <-- New folder to save .pt files
