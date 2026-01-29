@@ -40,7 +40,8 @@ def visualize_single_file_node(
     trigger_code: int,
     node_number: int,
     labels_key: str = "labels",
-    trials_key: str = "trial_data"
+    trials_key: str = "trial_data",
+    selected_nodes: Optional[List[int]] = None
 ):
     """
     Load one file and visualize a specific node for a specific trigger code.
@@ -67,7 +68,7 @@ def visualize_single_file_node(
         Figure object with the 3D surface plot
     """
     # Load data using backend function
-    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key)
+    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key, selected_nodes)
     
     # Extract node epochs
     node_epochs = extract_node_epochs(labels, trial_data, trigger_code, node_number)
@@ -112,7 +113,8 @@ def visualize_full_action(
     labels_key: str = "labels",
     trials_key: str = "trial_data",
     max_nodes: Optional[int] = None,
-    figsize: tuple = (16, 10)
+    figsize: tuple = (16, 10),
+    selected_nodes: Optional[List[int]] = None
 ):
     """
     Visualize a full action showing all nodes/channels for a specific trigger code.
@@ -139,7 +141,7 @@ def visualize_full_action(
         Figure object with subplots for each node
     """
     # Load data
-    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key)
+    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key, selected_nodes)
     
     # Extract trials for the trigger code
     filtered_labels, filtered_trial_data = extract_trials_by_trigger(
@@ -218,7 +220,8 @@ def visualize_single_trial_all_nodes(
     labels_key: str = "labels",
     trials_key: str = "trial_data",
     max_nodes: Optional[int] = None,
-    figsize: tuple = (14, 10)
+    figsize: tuple = (14, 10),
+    selected_nodes: Optional[List[int]] = None
 ):
     """
     Visualize a single trial showing all nodes.
@@ -256,7 +259,7 @@ def visualize_single_trial_all_nodes(
         raise ValueError(f"display_mode must be either '2d' or '3d'. Got '{display_mode}'.")
     
     # Load data
-    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key)
+    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key, selected_nodes)
     
     # Extract trials for the trigger code
     filtered_labels, filtered_trial_data = extract_trials_by_trigger(
@@ -353,6 +356,149 @@ def visualize_single_trial_all_nodes(
 
 
 # ------------------------------------------------------------
+# 2c. Visualize all trials for a trigger in a grid
+# ------------------------------------------------------------
+def visualize_all_trials_grid(
+    mat_path: Union[str, Path],
+    trigger_code: int,
+    max_trials: int = 10,
+    display_mode: str = "2d",
+    labels_key: str = "labels",
+    trials_key: str = "trial_data",
+    max_nodes: Optional[int] = None,
+    selected_nodes: Optional[List[int]] = None
+):
+    """
+    Visualize all trials for a trigger code in a grid layout.
+    
+    Parameters:
+    -----------
+    mat_path : str or Path
+        Path to the .mat file
+    trigger_code : int
+        Trigger code to filter by (e.g., 8, 11, 21, 61)
+    max_trials : int, default=10
+        Maximum number of trials to display
+    display_mode : str, default="2d"
+        Display mode: "2d" for 2D heatmap, "3d" for 3D surface plot
+    labels_key : str, default="labels"
+        Key for labels in the .mat file
+    trials_key : str, default="trial_data"
+        Key for trial data in the .mat file
+    max_nodes : int, optional
+        Maximum number of nodes to display. If None, displays all nodes.
+    
+    Returns:
+    --------
+    fig : matplotlib.figure.Figure
+        Figure object with grid of subplots showing all trials
+    """
+    # Load data
+    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key, selected_nodes)
+    
+    # Extract trials for the trigger code
+    filtered_labels, filtered_trial_data = extract_trials_by_trigger(
+        labels, trial_data, trigger_code
+    )
+    
+    n_trials = filtered_trial_data.shape[0]
+    n_channels = metadata['n_channels']
+    n_samples = metadata['n_samples']
+    
+    # Limit number of nodes if specified
+    if max_nodes is not None:
+        n_channels = min(n_channels, max_nodes)
+        filtered_trial_data = filtered_trial_data[:, :n_channels, :]
+    
+    # Limit number of trials to display
+    n_trials_to_show = min(max_trials, n_trials)
+    
+    # Calculate grid dimensions
+    n_cols = int(np.ceil(np.sqrt(n_trials_to_show)))
+    n_rows = int(np.ceil(n_trials_to_show / n_cols))
+    
+    # Create figure with subplots
+    if display_mode == "3d":
+        fig = plt.figure(figsize=(n_cols * 4, n_rows * 3))
+    else:
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols * 4, n_rows * 3))
+        # Flatten axes array for easier indexing
+        if n_trials_to_show == 1:
+            axes = np.array([axes])
+        axes = axes.flatten()
+    
+    # Get min/max for consistent color scaling across all trials
+    all_data_min = np.min(filtered_trial_data[:n_trials_to_show, :, :])
+    all_data_max = np.max(filtered_trial_data[:n_trials_to_show, :, :])
+    
+    # Plot each trial in a subplot
+    for trial_idx in range(n_trials_to_show):
+        # Extract the specific trial
+        single_trial_data = filtered_trial_data[trial_idx, :, :]  # (n_channels, n_samples)
+        
+        if display_mode == "3d":
+            ax = fig.add_subplot(n_rows, n_cols, trial_idx + 1, projection="3d")
+            
+            # Create meshgrid for 3D surface
+            t = np.arange(n_samples)
+            nodes = np.arange(n_channels)
+            X, Y = np.meshgrid(t, nodes, indexing="xy")
+            Z = single_trial_data
+            
+            # Create 3D surface plot
+            surf = ax.plot_surface(X, Y, Z, cmap='coolwarm', linewidth=0, antialiased=True)
+            
+            # Labels and title
+            ax.set_xlabel("Time sample")
+            ax.set_ylabel("Node index")
+            ax.set_zlabel("Amplitude")
+            ax.set_title(f"Trial {trial_idx}")
+            ax.view_init(elev=25, azim=-135)
+            
+        else:  # display_mode == "2d"
+            ax = axes[trial_idx]
+            
+            # Create heatmap
+            t = np.arange(n_samples)
+            nodes = np.arange(n_channels)
+            X, Y = np.meshgrid(t, nodes, indexing="xy")
+            
+            im = ax.pcolormesh(X, Y, single_trial_data, cmap='coolwarm', shading='auto',
+                              vmin=all_data_min, vmax=all_data_max)
+            
+            # Labels and title
+            ax.set_xlabel("Time sample")
+            ax.set_ylabel("Node number")
+            ax.set_title(f"Trial {trial_idx}")
+            
+            # Invert y-axis so Node 1 is at the top
+            ax.invert_yaxis()
+            ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
+    
+    # Hide unused subplots (for 2D mode)
+    if display_mode == "2d":
+        for idx in range(n_trials_to_show, len(axes)):
+            axes[idx].set_visible(False)
+    
+    # Add overall title
+    fig.suptitle(f"All Trials Grid: Trigger {trigger_code} | {n_trials_to_show} trials | {n_channels} nodes | Mode: {display_mode.upper()}", 
+                 fontsize=14, y=0.995)
+    
+    # Add shared colorbar for 2D mode
+    if display_mode == "2d":
+        from matplotlib.cm import ScalarMappable
+        from matplotlib.colors import Normalize
+        sm = ScalarMappable(cmap=plt.cm.coolwarm, norm=Normalize(vmin=all_data_min, vmax=all_data_max))
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=axes, orientation='horizontal', 
+                           pad=0.05, shrink=0.8, label='Amplitude (µV or raw units)')
+    
+    plt.tight_layout()
+    
+    return fig
+
+
+# ------------------------------------------------------------
 # Raw data visualization - display data before any modifications
 # ------------------------------------------------------------
 def visualize_raw_data_3d(
@@ -360,7 +506,8 @@ def visualize_raw_data_3d(
     trigger_code: Optional[int] = None,
     node_number: int = 1,
     labels_key: str = "labels",
-    trials_key: str = "trial_data"
+    trials_key: str = "trial_data",
+    selected_nodes: Optional[List[int]] = None
 ):
     """
     Display raw data from the file in 3D before applying any modifications.
@@ -385,7 +532,7 @@ def visualize_raw_data_3d(
         Figure object with 3D surface plot
     """
     # Load raw data
-    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key)
+    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key, selected_nodes)
     
     # Filter by trigger if specified
     if trigger_code is not None:
@@ -448,7 +595,8 @@ def visualize_3d_by_trials(
     trigger_code: int,
     node_number: int,
     labels_key: str = "labels",
-    trials_key: str = "trial_data"
+    trials_key: str = "trial_data",
+    selected_nodes: Optional[List[int]] = None
 ):
     """
     3D visualization grouped by trials (time × trial × amplitude).
@@ -472,7 +620,7 @@ def visualize_3d_by_trials(
     fig : matplotlib.figure.Figure
         Figure object with 3D plot
     """
-    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key)
+    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key, selected_nodes)
     node_epochs = extract_node_epochs(labels, trial_data, trigger_code, node_number)
     
     n_samples = metadata['n_samples']
@@ -504,7 +652,8 @@ def visualize_3d_by_channels(
     trigger_code: int,
     labels_key: str = "labels",
     trials_key: str = "trial_data",
-    selected_channels: Optional[List[int]] = None
+    selected_channels: Optional[List[int]] = None,
+    selected_nodes: Optional[List[int]] = None
 ):
     """
     3D visualization grouped by channels (time × channel × amplitude).
@@ -528,7 +677,7 @@ def visualize_3d_by_channels(
     fig : matplotlib.figure.Figure
         Figure object with 3D plot
     """
-    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key)
+    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key, selected_nodes)
     filtered_labels, filtered_trial_data = extract_trials_by_trigger(
         labels, trial_data, trigger_code
     )
@@ -581,7 +730,8 @@ def visualize_3d_by_triggers(
     node_number: int,
     trigger_codes: Optional[List[int]] = None,
     labels_key: str = "labels",
-    trials_key: str = "trial_data"
+    trials_key: str = "trial_data",
+    selected_nodes: Optional[List[int]] = None
 ):
     """
     3D visualization comparing multiple triggers (time × trigger × amplitude).
@@ -605,7 +755,7 @@ def visualize_3d_by_triggers(
     fig : matplotlib.figure.Figure
         Figure object with 3D plot
     """
-    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key)
+    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key, selected_nodes)
     
     # Get trigger codes
     if trigger_codes is None:
@@ -664,7 +814,8 @@ def visualize_3d_by_triggers(
 def visualize_debug_3d(
     mat_path: Union[str, Path],
     labels_key: str = "labels",
-    trials_key: str = "trial_data"
+    trials_key: str = "trial_data",
+    selected_nodes: Optional[List[int]] = None
 ):
     """
     Debugging visualization showing data statistics and structure.
@@ -684,7 +835,7 @@ def visualize_debug_3d(
     fig : matplotlib.figure.Figure
         Figure object with multiple subplots for debugging
     """
-    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key)
+    labels, trial_data, metadata = load_single_file(mat_path, labels_key, trials_key, selected_nodes)
     stats = get_data_statistics(labels, trial_data)
     
     unique_triggers = get_unique_triggers(labels)

@@ -75,10 +75,48 @@ def load_labels_and_trial_data(
 # ------------------------------------------------------------
 # Load a single file and return labels and trial data
 # ------------------------------------------------------------
+def filter_nodes(
+    trial_data: np.ndarray,
+    selected_nodes: Optional[List[int]]
+) -> np.ndarray:
+    """
+    Filter trial data to keep only selected nodes/channels.
+    
+    Parameters:
+    -----------
+    trial_data : np.ndarray
+        Shape (n_trials, n_channels, n_samples) - trial data
+    selected_nodes : list of int, optional
+        List of 1-based node indices to keep. If None, returns all nodes.
+    
+    Returns:
+    --------
+    filtered_trial_data : np.ndarray
+        Shape (n_trials, n_selected_channels, n_samples) - filtered trial data
+    """
+    if selected_nodes is None:
+        return trial_data
+    
+    # Convert to 0-based indices and validate
+    n_trials, n_channels, n_samples = trial_data.shape
+    node_indices = [node - 1 for node in selected_nodes]  # Convert to 0-based
+    
+    # Validate node indices
+    for idx in node_indices:
+        if not (0 <= idx < n_channels):
+            raise ValueError(f"Node index {idx + 1} is out of range [1, {n_channels}]")
+    
+    # Filter nodes
+    filtered_trial_data = trial_data[:, node_indices, :]
+    
+    return filtered_trial_data
+
+
 def load_single_file(
     mat_path: Union[str, Path],
     labels_key: str = "labels",
-    trials_key: str = "trial_data"
+    trials_key: str = "trial_data",
+    selected_nodes: Optional[List[int]] = None
 ) -> Tuple[np.ndarray, np.ndarray, Dict]:
     """
     Load a single .mat file and return data with metadata.
@@ -91,24 +129,32 @@ def load_single_file(
         Key for labels in the .mat file
     trials_key : str, default="trial_data"
         Key for trial data in the .mat file
+    selected_nodes : list of int, optional
+        List of 1-based node indices to keep. If None, keeps all nodes.
     
     Returns:
     --------
     labels : np.ndarray
         Shape (n_trials,) - integer labels
     trial_data : np.ndarray
-        Shape (n_trials, n_channels, n_samples) - trial data
+        Shape (n_trials, n_selected_channels, n_samples) - filtered trial data
     metadata : dict
-        Dictionary containing file metadata (n_trials, n_channels, n_samples, file_path)
+        Dictionary containing file metadata (n_trials, n_channels, n_samples, file_path, selected_nodes)
     """
     labels, trial_data = load_labels_and_trial_data(mat_path, labels_key, trials_key)
+    
+    # Filter nodes if specified
+    original_n_channels = trial_data.shape[1]
+    trial_data = filter_nodes(trial_data, selected_nodes)
     
     metadata = {
         'n_trials': trial_data.shape[0],
         'n_channels': trial_data.shape[1],
         'n_samples': trial_data.shape[2],
         'file_path': str(mat_path),
-        'unique_labels': np.unique(labels).tolist()
+        'unique_labels': np.unique(labels).tolist(),
+        'original_n_channels': original_n_channels,
+        'selected_nodes': selected_nodes if selected_nodes is not None else list(range(1, original_n_channels + 1))
     }
     
     return labels, trial_data, metadata
