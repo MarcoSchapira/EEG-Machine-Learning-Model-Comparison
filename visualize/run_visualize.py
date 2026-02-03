@@ -45,13 +45,15 @@ robust_nodes = [
     23,  # CPz
 ]
 
-selected_nodes = robust_nodes
+all_nodes = list(range(1, 60))
+
+selected_nodes = minimal_nodes
 
 run_raw_data_3d = False
 run_full_action_all_trials = False
-run_single_trial_all_nodes = False
+run_single_trial_all_nodes = True
 run_debug_3d = False
-run_trigger_code_all_nodes = True
+run_trigger_code_all_nodes = False
 
 # Raw data 3D visualization (before any modifications)
 if run_raw_data_3d:
@@ -67,7 +69,7 @@ if run_raw_data_3d:
 if run_full_action_all_trials:
     fig = visualize_full_action(
         mat_path=mat_path,
-        trigger_code=61,
+        trigger_code=11,
         selected_nodes=selected_nodes
     )
     plt.show()
@@ -75,8 +77,8 @@ if run_full_action_all_trials:
 if run_single_trial_all_nodes:
     fig = visualize_single_trial_all_nodes(
         mat_path=mat_path, 
-        trigger_code=11, 
-        trial_number=2, 
+        trigger_code=21, 
+        trial_number=0, 
         display_mode="2d",
         selected_nodes=selected_nodes
     )
@@ -85,7 +87,7 @@ if run_single_trial_all_nodes:
 if run_trigger_code_all_nodes:
     fig = visualize_all_trials_grid(
         mat_path=mat_path,
-        trigger_code=61,
+        trigger_code=21,
         max_trials=50,
         display_mode="2d",
         selected_nodes=selected_nodes
@@ -96,6 +98,6 @@ if run_trigger_code_all_nodes:
 if run_debug_3d:
     fig = visualize_debug_3d(
         mat_path=mat_path,
-        selected_nodes=selected_nodes
+        #selected_nodes=selected_nodes
     )
     plt.show()

@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# Ensure repo root is on path so MSCFormer package can be imported
+_repo_root = Path(__file__).resolve().parent.parent
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
+
 import os
 gpus = [0]
 os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
@@ -7,8 +15,8 @@ import pandas as pd
 import random
 import datetime
 import time
-from CTNModel import EEGTransformer
-from MSCFormerModel import Parameters, MSCFormer
+#from CTNModel import EEGTransformer
+from MSCFormer.MSCFormerModel import Parameters, MSCFormer
 from pandas import ExcelWriter
 from torchsummary import summary
 import torch
@@ -26,6 +34,9 @@ from utils import load_data_evaluate
 import numpy as np
 import pandas as pd
 from torch.autograd import Variable
+
+import torch
+device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
 
 
 class ExP():
@@ -86,6 +97,8 @@ class ExP():
 
             aug_data.append(tmp_aug_data)
             aug_label.append(tmp_label[:number_records_by_augmentation])
+        
+        
         aug_data = np.concatenate(aug_data)
         aug_label = np.concatenate(aug_label)
         aug_shuffle = np.random.permutation(len(aug_data))
@@ -393,8 +406,8 @@ def main(model, dirs,
 if __name__ == "__main__":
     #----------------------------------------
     #DATA_DIR = r'D:/EEG Data/BCI IV-2a/labeled_mat_raw/'
-    DATA_DIR = r'D:/EEG Data/EEG_11/EEG_Compact/Processed_Train123Test3/'
-    EVALUATE_MODE = 'LOSO-No' # leaving one subject out subject-dependent  subject-indenpedent
+    DATA_DIR = r'/Users/marcoschapira/Documents/queens/capstone/local_data/EEG_files/'
+    EVALUATE_MODE = 'LOSO' # leaving one subject out subject-dependent  subject-indenpedent
 
     N_AUG = 3           # data augmentation times for generating artificial training data set
     N_SEG = 8           # segmentation times for S&R
@@ -429,20 +442,20 @@ if __name__ == "__main__":
     parameters = Parameters(EEGNet1_DROPOUT_RATE)
     cModel = MSCFormer(parameters, database_type=TYPE).cuda()
 
-    sModel = EEGTransformer(
-        heads=HEADS, 
-        emb_size=EMB_DIM,
-        depth=DEPTH, 
-        database_type=TYPE,
-        eeg1_f1=EEGNet1_F1, 
-        eeg1_D=EEGNet1_D,
-        eeg1_kernel_size=EEGNet1_KERNEL_SIZE,
-        eeg1_pooling_size1 = EEGNet1_POOL_SIZE1,
-        eeg1_pooling_size2 = EEGNet1_POOL_SIZE2,
-        eeg1_dropout_rate = EEGNet1_DROPOUT_RATE,
-        eeg1_number_channel = number_channel,
-        flatten_eeg1 = FLATTEN_EEGNet1,  
-        ).cuda()
+    # sModel = EEGTransformer(
+    #     heads=HEADS, 
+    #     emb_size=EMB_DIM,
+    #     depth=DEPTH, 
+    #     database_type=TYPE,
+    #     eeg1_f1=EEGNet1_F1, 
+    #     eeg1_D=EEGNet1_D,
+    #     eeg1_kernel_size=EEGNet1_KERNEL_SIZE,
+    #     eeg1_pooling_size1 = EEGNet1_POOL_SIZE1,
+    #     eeg1_pooling_size2 = EEGNet1_POOL_SIZE2,
+    #     eeg1_dropout_rate = EEGNet1_DROPOUT_RATE,
+    #     eeg1_number_channel = number_channel,
+    #     flatten_eeg1 = FLATTEN_EEGNet1,  
+    #     ).cuda()
     
     result = main(cModel, dirs = RESULT_NAME, evaluate_mode = EVALUATE_MODE, dataset_type=TYPE, validate_ratio = validate_ratio)
    

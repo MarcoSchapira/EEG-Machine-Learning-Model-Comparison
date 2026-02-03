@@ -66,6 +66,7 @@ def load_data_subject_dependent(dir_path, dataset_type, n_sub):
         The number of subject, the scope range from 1 to 9.
 
     '''
+    dir_path = "/Users/marcoschapira/Documents/queens/capstone/local_data/EEG_files/EEG_session3_sub9_twist_realMove_compact.mat"
     train_data, train_label = load_data(dir_path, dataset_type, n_sub, mode='train')
     test_data, test_label = load_data(dir_path, dataset_type, n_sub, mode='test')
     return train_data, train_label, test_data, test_label
@@ -136,16 +137,18 @@ def load_data(dir_path, dataset_type, n_sub, mode='train'):
     label : ndarray
 
     '''
+    print("dir_path:", dir_path + '{}{:02d}{}.mat'.format(dataset_type, n_sub, "T"))
+
     if dataset_type == 'C':
         if mode=='train':
-            data_npz = np.load(dir_path + '{}{:02d}{}.npz'.format(dataset_type, n_sub, 'T'))
+            data_npz = np.load(dir_path, allow_pickle=True)# + '{}{:02d}{}.npz'.format(dataset_type, n_sub, 'T'))
 
             # Access contents
             data = data_npz["data"]
             label = data_npz["labels"]
 
         else:
-            data_npz = np.load(dir_path + '{}{:02d}{}.npz'.format(dataset_type, n_sub, 'V'))
+            data_npz = np.load(dir_path, allow_pickle=True)# + '{}{:02d}{}.npz'.format(dataset_type, n_sub, 'V'))
 
             # Access contents
             data = data_npz["data"]
@@ -164,7 +167,7 @@ def load_data(dir_path, dataset_type, n_sub, mode='train'):
             mode_s = 'T'
         else:
             mode_s = 'E'
-        data_mat = scipy.io.loadmat(dir_path + '{}{:02d}{}.mat'.format(dataset_type, n_sub, mode_s))
+        data_mat = scipy.io.loadmat(dir_path, allow_pickle=True)# + '{}{:02d}{}.mat'.format(dataset_type, n_sub, mode_s))
         data = data_mat['data']  # (288, 22, 1000)
         label =data_mat['label']
     

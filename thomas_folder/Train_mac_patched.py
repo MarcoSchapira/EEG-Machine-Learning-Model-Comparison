@@ -1,0 +1,488 @@
+import os
+import sys
+from pathlib import Path
+
+# Ensure repo root is on path for MSCFormer and thomas_folder packages
+_repo_root = Path(__file__).resolve().parent.parent
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
+
+gpus = [0]
+os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+import numpy as np
+import pandas as pd
+import random
+import datetime
+import time
+#from CTNModel import EEGTransformer
+from MSCFormer.MSCFormerModel import Parameters, MSCFormer
+from pandas import ExcelWriter
+from torchsummary import summary
+import torch
+
+# --- Device selection (CUDA -> MPS -> CPU) ---
+DEVICE = torch.device(
+    'cuda' if torch.cuda.is_available()
+    else 'mps' if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()
+    else 'cpu'
+)
+print('Using device:', DEVICE)
+# --------------------------------------------
+from torch.backends import cudnn
+from utils import calMetrics
+from utils import calculatePerClass
+from utils import numberClassChannel
+import warnings
+warnings.filterwarnings("ignore")
+cudnn.benchmark = False
+cudnn.deterministic = True
+import torch
+from utils import numberClassChannel
+#from utils import load_data_evaluate
+from new_load import load_data_evaluate
+
+import numpy as np
+import pandas as pd
+from torch.autograd import Variable
+
+import torch
+device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
+
+
+class ExP():
+    def __init__(self, model, nsub, data_dir, result_name,
+                 epochs=2000, 
+                 number_aug=2,
+                 number_seg=8, 
+                 gpus=[0], 
+                 evaluate_mode = 'subject-dependent',
+                 dataset_type='A',
+                 validate_ratio = 0.2,
+                 learning_rate = 0.001,
+                 batch_size = 72,       # each batch of raw train dataset, real training batchsize =  batch_size * (1 + N_AUG) for additional data augmentation.
+                 ):
+        
+        super(ExP, self).__init__()
+        self.dataset_type = dataset_type
+        self.batch_size = batch_size
+        self.lr = learning_rate
+        self.b1 = 0.5
+        self.b2 = 0.999
+        self.n_epochs = epochs
+        self.nSub = nsub
+        self.number_augmentation = number_aug
+        self.number_seg = number_seg
+        self.root = data_dir
+        self.result_name = result_name
+        self.evaluate_mode = evaluate_mode
+        self.validate_ratio = validate_ratio
+
+        self.device = DEVICE
+        self.Tensor = torch.FloatTensor
+        self.LongTensor = torch.LongTensor
+        self.criterion_cls = torch.nn.CrossEntropyLoss().to(self.device)
+
+        self.number_class, self.number_channel = numberClassChannel(self.dataset_type)
+        self.model = model
+        #self.model = nn.DataParallel(self.model, device_ids=gpus)
+        self.model = self.model.to(self.device)
+        self.model_filename = self.result_name + '/model_{}.pth'.format(self.nSub)
+
+    # Segmentation and Reconstruction (S&R) data augmentation
+    def interaug(self, timg, label):  
+        aug_data = []
+        aug_label = []
+        number_records_by_augmentation = self.number_augmentation * int(self.batch_size / self.number_class)
+        number_segmentation_points = 1000 // self.number_seg
+        for clsAug in range(self.number_class):
+            cls_idx = np.where(label == clsAug + 1)
+            tmp_data = timg[cls_idx]
+            tmp_label = label[cls_idx]
+            
+            tmp_aug_data = np.zeros((number_records_by_augmentation, 1, self.number_channel, 1000))
+            for ri in range(number_records_by_augmentation):
+                for rj in range(self.number_seg):
+                    rand_idx = np.random.randint(0, tmp_data.shape[0], self.number_seg)
+                    tmp_aug_data[ri, :, :, rj * number_segmentation_points:(rj + 1) * number_segmentation_points] = \
+                        tmp_data[rand_idx[rj], :, :, rj * number_segmentation_points:(rj + 1) * number_segmentation_points]
+
+            aug_data.append(tmp_aug_data)
+            aug_label.append(tmp_label[:number_records_by_augmentation])
+        
+        
+        aug_data = np.concatenate(aug_data)
+        aug_label = np.concatenate(aug_label)
+        aug_shuffle = np.random.permutation(len(aug_data))
+        aug_data = aug_data[aug_shuffle, :, :]
+        aug_label = aug_label[aug_shuffle]
+
+        aug_data = torch.from_numpy(aug_data).to(self.device)
+        aug_data = aug_data.float()
+        aug_label = torch.from_numpy(aug_label-1).to(self.device)
+        aug_label = aug_label.long()
+        return aug_data, aug_label
+
+
+
+    def get_source_data(self):
+        (self.train_data,    # (batch, channel, length)
+         self.train_label, 
+         self.test_data, 
+         self.test_label) = load_data_evaluate(self.root, self.dataset_type, self.nSub, mode_evaluate=self.evaluate_mode)
+
+        self.train_data = np.expand_dims(self.train_data, axis=1)  # (288, 1, 22, 1000)
+        self.train_label = np.transpose(self.train_label)  
+
+        self.allData = self.train_data
+        self.allLabel = self.train_label[0]  
+
+        shuffle_num = np.random.permutation(len(self.allData))
+        # print("len(self.allData):", len(self.allData))
+        self.allData = self.allData[shuffle_num, :, :, :]  # (288, 1, 22, 1000)
+        # print("shuffle_num", shuffle_num)
+        # print("self.allLabel", self.allLabel)
+        self.allLabel = self.allLabel[shuffle_num]
+
+        print('-'*20, "train size：", self.train_data.shape, "test size：", self.test_data.shape)
+        # self.test_data = np.transpose(self.test_data, (2, 1, 0))
+        self.test_data = np.expand_dims(self.test_data, axis=1)
+        self.test_label = np.transpose(self.test_label)
+
+        self.testData = self.test_data
+        self.testLabel = self.test_label[0]
+
+        # standardize
+        target_mean = np.mean(self.allData)
+        target_std = np.std(self.allData)
+        self.allData = (self.allData - target_mean) / target_std
+        self.testData = (self.testData - target_mean) / target_std
+        
+        isSaveDataLabel = False #True
+        if isSaveDataLabel:
+            np.save("./gradm_data/train_data_{}.npy".format(self.nSub), self.allData)
+            np.save("./gradm_data/train_lable_{}.npy".format(self.nSub), self.allLabel)
+            np.save("./gradm_data/test_data_{}.npy".format(self.nSub), self.testData)
+            np.save("./gradm_data/test_label_{}.npy".format(self.nSub), self.testLabel)
+        # data shape: (trial, conv channel, electrode channel, time samples)
+        return self.allData, self.allLabel, self.testData, self.testLabel
+
+    def train(self):
+        img, label, test_data, test_label = self.get_source_data()
+        # print("label size:", label.shape)
+        # print("label size:", label)
+        
+        img = torch.from_numpy(img)
+        label = torch.from_numpy(label - 1)
+        dataset = torch.utils.data.TensorDataset(img, label)
+        
+
+        test_data = torch.from_numpy(test_data)
+        test_label = torch.from_numpy(test_label - 1)
+        test_dataset = torch.utils.data.TensorDataset(test_data, test_label)
+        self.test_dataloader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=self.batch_size, shuffle=False)
+
+        # Optimizers
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, betas=(self.b1, self.b2))
+
+        test_data = Variable(test_data.type(self.Tensor))
+        test_label = Variable(test_label.type(self.LongTensor))
+        best_epoch = 0
+        num = 0
+        min_loss = 100
+        # recording train_acc, train_loss, test_acc, test_loss
+        result_process = []
+
+        #! Train the model for each epoch
+        for e in range(self.n_epochs):
+            self.dataloader = torch.utils.data.DataLoader(dataset=dataset, batch_size=self.batch_size, shuffle=True)
+            epoch_process = {}
+            epoch_process['epoch'] = e
+            # in_epoch = time.time()
+            self.model.train()
+            outputs_list = []
+            label_list = []
+            val_data_list = []
+            val_label_list = []
+
+            #! Train the model for each batch
+            for i, (img, label) in enumerate(self.dataloader):
+                number_sample = img.shape[0]
+                number_validate = int(self.validate_ratio * number_sample)
+                
+                # split raw train dataset into real train dataset and validate dataset
+                train_data = img[:-number_validate]
+                train_label = label[:-number_validate]
+                
+                val_data_list.append(img[-number_validate:])       # correct 20250417
+                val_label_list.append(label[-number_validate:])    # correct 20250417
+                
+                # real train dataset
+                img = Variable(train_data.type(self.Tensor))
+                label = Variable(train_label.type(self.LongTensor))
+                
+                # data augmentation
+                aug_data, aug_label = self.interaug(self.allData, self.allLabel)
+                # concat real train dataset and generate aritifical train dataset
+                img = torch.cat((img, aug_data))
+                label = torch.cat((label, aug_label))
+
+                # training model
+                features, outputs = self.model(img)
+                outputs_list.append(outputs)
+                label_list.append(label)
+                # print("train outputs: ", outputs.shape, type(outputs))
+                # print(features.size())
+                loss = self.criterion_cls(outputs, label) 
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+
+            del img
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            # out_epoch = time.time()
+            # test process
+            if (e + 1) % 1 == 0:
+                self.model.eval()
+                # validate model
+                val_data = torch.cat(val_data_list).to(self.device)
+                val_label = torch.cat(val_label_list).to(self.device)
+                val_data = val_data.type(self.Tensor)
+                val_label = val_label.type(self.LongTensor)            
+                
+                val_dataset = torch.utils.data.TensorDataset(val_data, val_label)
+                self.val_dataloader = torch.utils.data.DataLoader(dataset=val_dataset, batch_size=self.batch_size, shuffle=False)
+                outputs_list = []
+                with torch.no_grad():
+                    for i, (img, _) in enumerate(self.val_dataloader):
+                        # val model
+                        img = img.type(self.Tensor).to(self.device)
+                        _, Cls = self.model(img)
+                        outputs_list.append(Cls)
+                        del img, Cls
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+                    
+                Cls = torch.cat(outputs_list)
+                
+                val_loss = self.criterion_cls(Cls, val_label)
+                val_pred = torch.max(Cls, 1)[1]
+                val_acc = float((val_pred == val_label).cpu().numpy().astype(int).sum()) / float(val_label.size(0))
+                
+                epoch_process['val_acc'] = val_acc                
+                epoch_process['val_loss'] = val_loss.detach().cpu().numpy()  
+                
+                train_pred = torch.max(outputs, 1)[1]
+                train_acc = float((train_pred == label).cpu().numpy().astype(int).sum()) / float(label.size(0))
+                epoch_process['train_acc'] = train_acc
+                epoch_process['train_loss'] = loss.detach().cpu().numpy()
+
+                num = num + 1
+
+                # if min_loss>val_loss:                
+                if min_loss>val_loss:
+                    min_loss = val_loss
+                    best_epoch = e
+                    epoch_process['epoch'] = e
+                    torch.save(self.model, self.model_filename)
+                    print("{}_{} train_acc: {:.4f} train_loss: {:.6f}\tval_acc: {:.6f} val_loss: {:.7f}".format(self.nSub,
+                                                                                           epoch_process['epoch'],
+                                                                                           epoch_process['train_acc'],
+                                                                                           epoch_process['train_loss'],
+                                                                                           epoch_process['val_acc'],
+                                                                                           epoch_process['val_loss'],
+                                                                                        ))
+            
+                
+            result_process.append(epoch_process)  
+
+        
+            del label, val_data, val_label
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        
+        # load model for test
+        self.model.eval()
+        self.model = torch.load(self.model_filename, weights_only=False, map_location=self.device).to(self.device)
+        outputs_list = []
+        with torch.no_grad():
+            for i, (img, label) in enumerate(self.test_dataloader):
+                img_test = Variable(img.type(self.Tensor)).to(self.device)
+                # label_test = Variable(label.type(self.LongTensor))
+
+                # test model
+                features, outputs = self.model(img_test)
+                val_pred = torch.max(outputs, 1)[1]
+                outputs_list.append(outputs)
+        outputs = torch.cat(outputs_list) 
+        y_pred = torch.max(outputs, 1)[1]
+        
+        
+        test_acc = float((y_pred == test_label).cpu().numpy().astype(int).sum()) / float(test_label.size(0))
+        
+        print("epoch: ", best_epoch, '\tThe test accuracy is:', test_acc)
+
+        df_process = pd.DataFrame(result_process)
+
+        return test_acc, test_label, y_pred, df_process, best_epoch
+        # writer.close()
+        
+
+
+def main(model,
+         results_name_path,               
+         evaluate_mode = 'subject-dependent', # "LOSO" or other
+         dataset_type='A',  
+         validate_ratio = 0.2
+         ):
+
+    #! create the results folder
+    if not os.path.exists(results_name_path):
+        os.makedirs(results_name_path)
+    
+    #! create the result_metric.xlsx file
+    result_write_metric = ExcelWriter(results_name_path+"/result_metric.xlsx")
+    
+    result_metric_dict = {}
+    y_true_pred_dict = { }
+
+    #! create the process_train.xlsx file
+    process_write = ExcelWriter(results_name_path+"/process_train.xlsx")
+    #! create the pred_true.xlsx file
+    pred_true_write = ExcelWriter(results_name_path+"/pred_true.xlsx")
+    
+    #! create the subjects_result list
+    subjects_result = []
+    best_epochs = []
+    
+    #! train the model for each subject
+    for current_subject_numer in range(N_SUBJECT):      
+        
+        starttime = datetime.datetime.now()
+        seed_n = np.random.randint(2024)
+        print('seed is ' + str(seed_n))
+        random.seed(seed_n)
+        np.random.seed(seed_n)
+        torch.manual_seed(seed_n)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed_n)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed_n)
+        index_round =0
+        print('Subject %d' % (current_subject_numer+1))
+
+        #! train the model (inclduing loading the data)
+        exp = ExP(model, current_subject_numer+1, DATA_DIR, results_name_path, EPOCHS, N_AUG, N_SEG, gpus, 
+                  evaluate_mode = evaluate_mode, dataset_type=dataset_type, validate_ratio = validate_ratio)
+        testAcc, Y_true, Y_pred, df_process, best_epoch = exp.train()
+
+        #! save the results
+        true_cpu = Y_true.cpu().numpy().astype(int)
+        pred_cpu = Y_pred.cpu().numpy().astype(int)
+        df_pred_true = pd.DataFrame({'pred': pred_cpu, 'true': true_cpu})
+        df_pred_true.to_excel(pred_true_write, sheet_name=str(current_subject_numer+1))
+        y_true_pred_dict[current_subject_numer] = df_pred_true
+
+        accuracy, precison, recall, f1, kappa = calMetrics(true_cpu, pred_cpu)
+        subject_result = {'accuray': accuracy*100,
+                          'precision': precison*100,
+                          'recall': recall*100,
+                          'f1': f1*100, 
+                          'kappa': kappa*100
+                          }
+        subjects_result.append(subject_result)
+        df_process.to_excel(process_write, sheet_name=str(current_subject_numer+1))
+        best_epochs.append(best_epoch)
+    
+        print(' THE BEST ACCURACY IS ' + str(testAcc) + "\tkappa is " + str(kappa) )
+        endtime = datetime.datetime.now()
+        print('subject %d duration: '%(current_subject_numer+1) + str(endtime - starttime))
+
+        if current_subject_numer == 0:
+            yt = Y_true
+            yp = Y_pred
+        else:
+            yt = torch.cat((yt, Y_true))
+            yp = torch.cat((yp, Y_pred))
+                
+        df_result = pd.DataFrame(subjects_result)
+    process_write.close()
+    pred_true_write.close()
+
+
+    print('**The average Best accuracy is: ' + str(df_result['accuray'].mean()) + "kappa is: " + str(df_result['kappa'].mean()) + "\n" )
+    print("best epochs: ", best_epochs)
+    df_result.to_excel(result_write_metric, index=False)
+    result_metric_dict = df_result
+
+    mean = df_result.mean(axis=0)
+    mean.name = 'mean'
+    std = df_result.std(axis=0)
+    std.name = 'std'
+    df_result = pd.concat([df_result, pd.DataFrame(mean).T, pd.DataFrame(std).T])
+    
+    df_result.to_excel(result_write_metric, index=False)
+    print('-'*9, ' all result ', '-'*9)
+    print(df_result)
+    
+    print("*"*40)
+
+    result_write_metric.close()
+    return result_metric_dict
+
+if __name__ == "__main__":
+    #----------------------------------------
+    #DATA_DIR = r'D:/EEG Data/BCI IV-2a/labeled_mat_raw/'
+    DATA_DIR = r'/Users/marcoschapira/Documents/queens/capstone/local_data/EEG_files/'
+    EVALUATE_MODE = 'LOSO-no' # leaving one subject out subject-dependent  subject-indenpedent
+
+    N_AUG = 3           # data augmentation times for generating artificial training data set
+    N_SEG = 8           # segmentation times for S&R
+
+    EPOCHS = 1000
+    EMB_DIM = 16
+    HEADS = 2
+    DEPTH = 6
+    TYPE = 'C'
+    N_SUBJECT = 1 # number of subjects
+
+    
+    validate_ratio = 0.3 # split raw train dataset into real train dataset and validate dataset
+
+    EEGNet1_F1 = 8
+    EEGNet1_KERNEL_SIZE=64
+    EEGNet1_D=2
+    EEGNet1_POOL_SIZE1 = 8
+    EEGNet1_POOL_SIZE2 = 8
+    FLATTEN_EEGNet1 = 240
+
+    if EVALUATE_MODE!='LOSO':
+        EEGNet1_DROPOUT_RATE = 0.5
+    else:
+        EEGNet1_DROPOUT_RATE = 0.25   
+
+    number_class, number_channel = numberClassChannel(TYPE)
+    RESULT_NAME = "{}_heads_{}_depth_{}".format(TYPE, HEADS, DEPTH)
+
+    parameters = Parameters(EEGNet1_DROPOUT_RATE)
+    cModel = MSCFormer(parameters, database_type=TYPE).to(DEVICE)
+
+    # sModel = EEGTransformer(
+    #     heads=HEADS, 
+    #     emb_size=EMB_DIM,
+    #     depth=DEPTH, 
+    #     database_type=TYPE,
+    #     eeg1_f1=EEGNet1_F1, 
+    #     eeg1_D=EEGNet1_D,
+    #     eeg1_kernel_size=EEGNet1_KERNEL_SIZE,
+    #     eeg1_pooling_size1 = EEGNet1_POOL_SIZE1,
+    #     eeg1_pooling_size2 = EEGNet1_POOL_SIZE2,
+    #     eeg1_dropout_rate = EEGNet1_DROPOUT_RATE,
+    #     eeg1_number_channel = number_channel,
+    #     flatten_eeg1 = FLATTEN_EEGNet1,  
+    #     ).to(DEVICE)
+    
+    result = main(cModel, results_name_path = RESULT_NAME, evaluate_mode = EVALUATE_MODE, dataset_type=TYPE, validate_ratio = validate_ratio)
+   
+    
