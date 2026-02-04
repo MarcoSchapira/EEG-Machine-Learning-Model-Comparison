@@ -49,9 +49,9 @@ all_nodes = list(range(1, 60))
 
 selected_nodes = minimal_nodes
 
-run_raw_data_3d = False
+run_raw_data_3d = True
 run_full_action_all_trials = False
-run_single_trial_all_nodes = True
+run_single_trial_all_nodes = False
 run_debug_3d = False
 run_trigger_code_all_nodes = False
 
@@ -61,7 +61,7 @@ if run_raw_data_3d:
         mat_path=mat_path,
         trigger_code=61,
         node_number=15,
-        selected_nodes=selected_nodes
+        #selected_nodes=selected_nodes
     )
     plt.show()
 
