@@ -40,7 +40,7 @@ cudnn.deterministic = True
 import torch
 from utils import numberClassChannel
 #from utils import load_data_evaluate
-from new_load import load_data_evaluate
+from thomas_folder.new_load import load_data_evaluate
 
 import numpy as np
 import pandas as pd

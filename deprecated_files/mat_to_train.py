@@ -9,7 +9,7 @@ from typing import Tuple, List, Optional
 import numpy as np
 
 
-from visualize.data_loader import (
+from visualize_matlab.data_loader import (
     load_labels_and_trial_data,
     filter_nodes,
     load_single_file,
