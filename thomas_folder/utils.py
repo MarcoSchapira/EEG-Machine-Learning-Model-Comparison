@@ -66,7 +66,7 @@ def load_data_subject_dependent(dir_path, dataset_type, n_sub):
         The number of subject, the scope range from 1 to 9.
 
     '''
-    dir_path = "/Users/marcoschapira/Documents/queens/capstone/local_data/EEG_files/EEG_session3_sub9_twist_realMove_compact.mat"
+    #dir_path = "/Users/marcoschapira/Documents/queens/capstone/local_data/EEG_files/EEG_session3_sub9_twist_realMove_compact.mat"
     train_data, train_label = load_data(dir_path, dataset_type, n_sub, mode='train')
     test_data, test_label = load_data(dir_path, dataset_type, n_sub, mode='test')
     return train_data, train_label, test_data, test_label

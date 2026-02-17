@@ -57,7 +57,7 @@ class ExP():
                  number_seg=8, 
                  gpus=[0], 
                  evaluate_mode = 'subject-dependent',
-                 dataset_type='A',
+                 dataset_type='C',
                  validate_ratio = 0.2,
                  learning_rate = 0.001,
                  batch_size = 72,       # each batch of raw train dataset, real training batchsize =  batch_size * (1 + N_AUG) for additional data augmentation.
@@ -168,7 +168,11 @@ class ExP():
         return self.allData, self.allLabel, self.testData, self.testLabel
 
     def train(self):
-        img, label, test_data, test_label = self.get_source_data()
+        (self.train_data,    # (batch, channel, length)
+         self.train_label, 
+         self.test_data, 
+         self.test_label) = load_data_evaluate(self.root, self.dataset_type, self.nSub, mode_evaluate=self.evaluate_mode)
+
         # print("label size:", label.shape)
         # print("label size:", label)
         
@@ -434,7 +438,7 @@ def main(model,
 if __name__ == "__main__":
     #----------------------------------------
     #DATA_DIR = r'D:/EEG Data/BCI IV-2a/labeled_mat_raw/'
-    DATA_DIR = r'/Users/marcoschapira/Documents/queens/capstone/local_data/EEG_files/'
+    DATA_DIR = r'/Users/marcoschapira/Documents/queens/capstone/local_data/EEG_PT_files/'
     EVALUATE_MODE = 'LOSO-no' # leaving one subject out subject-dependent  subject-indenpedent
 
     N_AUG = 3           # data augmentation times for generating artificial training data set

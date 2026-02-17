@@ -16,7 +16,7 @@ from visualize import (
     visualize_all_trials_grid
 )
 
-mat_path = "/Users/marcoschapira/Documents/queens/capstone/local_data/EEG_files/EEG_session1_sub1_multigrasp_realMove_compact.mat"
+mat_path = "/Users/marcoschapira/Documents/queens/capstone/local_data/EEG_files/EEG_session1_sub1_reaching_realMove_compact.mat"
 
 # Optional: Specify which nodes to keep (1-based indices). If None, keeps all nodes.
 # Example: selected_nodes = [1, 5, 10, 15, 20]  # Keep only nodes 1, 5, 10, 15, 20
@@ -49,9 +49,9 @@ all_nodes = list(range(1, 60))
 
 selected_nodes = minimal_nodes
 
-run_raw_data_3d = True
+run_raw_data_3d = False
 run_full_action_all_trials = False
-run_single_trial_all_nodes = False
+run_single_trial_all_nodes = True
 run_debug_3d = False
 run_trigger_code_all_nodes = False
 
@@ -59,7 +59,7 @@ run_trigger_code_all_nodes = False
 if run_raw_data_3d:
     fig = visualize_raw_data_3d(
         mat_path=mat_path,
-        trigger_code=61,
+        trigger_code=11,
         node_number=15,
         #selected_nodes=selected_nodes
     )
@@ -88,7 +88,7 @@ if run_trigger_code_all_nodes:
     fig = visualize_all_trials_grid(
         mat_path=mat_path,
         trigger_code=21,
-        max_trials=50,
+        max_trials=20,
         display_mode="2d",
         selected_nodes=selected_nodes
     )
