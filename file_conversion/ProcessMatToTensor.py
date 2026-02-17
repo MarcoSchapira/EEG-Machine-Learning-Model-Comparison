@@ -8,7 +8,7 @@ from tqdm import tqdm # A progress bar, install with: pip install tqdm
 
 # --- Configuration ---
 MAT_DATA_DIR = "/Users/marcoschapira/Documents/queens/capstone/local_data/EEG_files"  # <-- Your .mat file directory
-PREPROCESSED_DIR = "/Users/marcoschapira/Documents/queens/capstone/local_data/EEG_PT_files"      # <-- New folder to save .pt files
+PREPROCESSED_DIR = "/Users/marcoschapira/Documents/queens/capstone/local_data/EEG_PT_files2"      # <-- New folder to save .pt files
 ALL_SUBJECTS = list(range(1, 26))
 ALL_SESSIONS = [1, 2, 3]
 ALL_ACTIONS = ["multigrasp", "reaching", "twist"]
