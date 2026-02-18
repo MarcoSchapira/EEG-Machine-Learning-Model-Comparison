@@ -270,12 +270,12 @@ class ExP():
                     epoch_process['epoch'] = e
                     torch.save(self.model, self.model_filename)
                     print("{}_{} train_acc: {:.4f} train_loss: {:.6f}\tval_acc: {:.6f} val_loss: {:.7f}".format(self.nSub,
-                                                                                           epoch_process['epoch'],
-                                                                                           epoch_process['train_acc'],
-                                                                                           epoch_process['train_loss'],
-                                                                                           epoch_process['val_acc'],
-                                                                                           epoch_process['val_loss'],
-                                                                                        ))
+                            epoch_process['epoch'],
+                            epoch_process['train_acc'],
+                            epoch_process['train_loss'],
+                            epoch_process['val_acc'],
+                            epoch_process['val_loss'],
+                        ))
             
                 
             result_process.append(epoch_process)  

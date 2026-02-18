@@ -22,11 +22,13 @@ from torchsummary import summary
 import torch
 
 # --- Device selection (CUDA -> MPS -> CPU) ---
-DEVICE = torch.device(
+DEVICE_TEMP = torch.device(
     'cuda' if torch.cuda.is_available()
     else 'mps' if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()
     else 'cpu'
 )
+DEVICE = torch.device("cpu")
+
 print('Using device:', DEVICE)
 # --------------------------------------------
 from torch.backends import cudnn
@@ -39,8 +41,7 @@ cudnn.benchmark = False
 cudnn.deterministic = True
 import torch
 from utils import numberClassChannel
-#from utils import load_data_evaluate
-from thomas_folder.new_load import load_data_evaluate
+from utils import load_data_evaluate
 
 import numpy as np
 import pandas as pd
@@ -117,6 +118,10 @@ class ExP():
         aug_data = aug_data[aug_shuffle, :, :]
         aug_label = aug_label[aug_shuffle]
 
+        aug_data = aug_data.astype(np.float32, copy=False)
+        aug_label = aug_label.astype(np.int64, copy=False)   # safe for CE labels
+
+
         aug_data = torch.from_numpy(aug_data).to(self.device)
         aug_data = aug_data.float()
         aug_label = torch.from_numpy(aug_label-1).to(self.device)
@@ -124,57 +129,91 @@ class ExP():
         return aug_data, aug_label
 
 
-
     def get_source_data(self):
-        (self.train_data,    # (batch, channel, length)
-         self.train_label, 
-         self.test_data, 
-         self.test_label) = load_data_evaluate(self.root, self.dataset_type, self.nSub, mode_evaluate=self.evaluate_mode)
+        (train_data,
+        train_label,
+        test_data,
+        test_label) = load_data_evaluate(
+            self.root,
+            self.nSub,
+            mode_evaluate=self.evaluate_mode,
+            chosen_nodes=[9, 10, 14, 15, 16, 20, 21, 22]
+        )
 
-        self.train_data = np.expand_dims(self.train_data, axis=1)  # (288, 1, 22, 1000)
-        self.train_label = np.transpose(self.train_label)  
+        # ----------------------------
+        # 1) Force labels to 1D arrays
+        # ----------------------------
+        train_label = np.asarray(train_label).squeeze()
+        test_label  = np.asarray(test_label).squeeze()
 
-        self.allData = self.train_data
-        self.allLabel = self.train_label[0]  
+        if train_label.ndim != 1:
+            train_label = train_label.reshape(-1)
+        if test_label.ndim != 1:
+            test_label = test_label.reshape(-1)
 
-        shuffle_num = np.random.permutation(len(self.allData))
-        # print("len(self.allData):", len(self.allData))
-        self.allData = self.allData[shuffle_num, :, :, :]  # (288, 1, 22, 1000)
-        # print("shuffle_num", shuffle_num)
-        # print("self.allLabel", self.allLabel)
-        self.allLabel = self.allLabel[shuffle_num]
+        # ----------------------------
+        # 2) IMPORTANT: make labels 1..K if they are currently 0..K-1
+        #    because later code does (label - 1) before CrossEntropyLoss.
+        #    If labels are already 0..11 and you subtract 1 -> -1..10, class 11 disappears
+        #    -> interaug() crashes.
+        # ----------------------------
+        if train_label.size > 0 and train_label.min() == 0:
+            train_label = train_label + 1
+        if test_label.size > 0 and test_label.min() == 0:
+            test_label = test_label + 1
 
-        print('-'*20, "train size：", self.train_data.shape, "test size：", self.test_data.shape)
-        # self.test_data = np.transpose(self.test_data, (2, 1, 0))
-        self.test_data = np.expand_dims(self.test_data, axis=1)
-        self.test_label = np.transpose(self.test_label)
+        # ----------------------------
+        # 3) Add conv channel dim: (N, C, T) -> (N, 1, C, T)
+        # ----------------------------
+        train_data = np.expand_dims(train_data, axis=1)
+        test_data  = np.expand_dims(test_data, axis=1)
 
-        self.testData = self.test_data
-        self.testLabel = self.test_label[0]
+        # ----------------------------
+        # 4) Shuffle TRAIN and TEST (keep alignment)
+        # ----------------------------
+        shuffle_train = np.random.permutation(train_data.shape[0])
+        train_data = train_data[shuffle_train, :, :, :]
+        train_label = train_label[shuffle_train]
 
-        # standardize
-        target_mean = np.mean(self.allData)
-        target_std = np.std(self.allData)
-        self.allData = (self.allData - target_mean) / target_std
-        self.testData = (self.testData - target_mean) / target_std
-        
-        isSaveDataLabel = False #True
+        shuffle_test = np.random.permutation(test_data.shape[0])
+        test_data = test_data[shuffle_test, :, :, :]
+        test_label = test_label[shuffle_test]
+
+        # ----------------------------
+        # 5) Standardize using TRAIN stats only
+        # ----------------------------
+        target_mean = np.mean(train_data)
+        target_std = np.std(train_data)
+        if target_std == 0:
+            target_std = 1.0
+
+        train_data = (train_data - target_mean) / target_std
+        test_data  = (test_data  - target_mean) / target_std
+
+        # ----------------------------
+        # 6) Set fields expected by rest of code
+        # ----------------------------
+        self.allData = train_data
+        self.allLabel = train_label
+        self.testData = test_data
+        self.testLabel = test_label
+
+        # Optional save (unchanged)
+        isSaveDataLabel = False
         if isSaveDataLabel:
             np.save("./gradm_data/train_data_{}.npy".format(self.nSub), self.allData)
             np.save("./gradm_data/train_lable_{}.npy".format(self.nSub), self.allLabel)
             np.save("./gradm_data/test_data_{}.npy".format(self.nSub), self.testData)
             np.save("./gradm_data/test_label_{}.npy".format(self.nSub), self.testLabel)
-        # data shape: (trial, conv channel, electrode channel, time samples)
+
         return self.allData, self.allLabel, self.testData, self.testLabel
 
-    def train(self):
-        (self.train_data,    # (batch, channel, length)
-         self.train_label, 
-         self.test_data, 
-         self.test_label) = load_data_evaluate(self.root, self.dataset_type, self.nSub, mode_evaluate=self.evaluate_mode)
 
+    def train(self):
+        img, label, test_data, test_label = self.get_source_data()
         # print("label size:", label.shape)
         # print("label size:", label)
+        
         
         img = torch.from_numpy(img)
         label = torch.from_numpy(label - 1)
@@ -247,6 +286,7 @@ class ExP():
                 torch.cuda.empty_cache()
             # out_epoch = time.time()
             # test process
+            #! Validate the model after each epoch
             if (e + 1) % 1 == 0:
                 self.model.eval()
                 # validate model
@@ -291,12 +331,12 @@ class ExP():
                     epoch_process['epoch'] = e
                     torch.save(self.model, self.model_filename)
                     print("{}_{} train_acc: {:.4f} train_loss: {:.6f}\tval_acc: {:.6f} val_loss: {:.7f}".format(self.nSub,
-                                                                                           epoch_process['epoch'],
-                                                                                           epoch_process['train_acc'],
-                                                                                           epoch_process['train_loss'],
-                                                                                           epoch_process['val_acc'],
-                                                                                           epoch_process['val_loss'],
-                                                                                        ))
+                            epoch_process['epoch'],
+                            epoch_process['train_acc'],
+                            epoch_process['train_loss'],
+                            epoch_process['val_acc'],
+                            epoch_process['val_loss'],
+                        ))
             
                 
             result_process.append(epoch_process)  
@@ -307,6 +347,7 @@ class ExP():
                 torch.cuda.empty_cache()
         
         # load model for test
+        #! Test the model after all epochs
         self.model.eval()
         self.model = torch.load(self.model_filename, weights_only=False, map_location=self.device).to(self.device)
         outputs_list = []

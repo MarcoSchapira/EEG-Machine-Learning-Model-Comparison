@@ -172,7 +172,9 @@ class PositioinalEncoding(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.encoding = nn.Parameter(torch.randn(1, length, embedding))
     def forward(self, x): # x-> [batch, embedding, length]
-        x = x + self.encoding[:, :x.shape[1], :].cuda()
+        x = x + self.encoding[:, :x.shape[1], :].to(x.device)
+        #! disabled cuda for now
+        #x = x + self.encoding[:, :x.shape[1], :].cuda()
         return self.dropout(x)        
         
     
@@ -201,7 +203,11 @@ class MSCFormer(nn.Module):
         b, l, e = x.shape
         
         # Add class token like BERT
-        x = torch.cat((torch.zeros((b, 1, e),requires_grad=True).cuda(),x), 1)
+        x = torch.cat((torch.zeros((b, 1, e), device=x.device, dtype=x.dtype, requires_grad=True), x), 1)
+        #! disabled cuda for now
+        #x = torch.cat((torch.zeros((b, 1, e),requires_grad=True).cuda(),x), 1)
+        
+        
         x = x * math.sqrt(self.emb_size)
         x = self.position(x)
         trans = self.trans(x)

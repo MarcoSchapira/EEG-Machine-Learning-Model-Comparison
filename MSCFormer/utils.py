@@ -24,151 +24,157 @@ import os
 import shutil
 
 
+def load_data_evaluate(
+    dir_path,
+    n_sub,
+    mode_evaluate="LOSO",
+    chosen_nodes=(9, 10, 14, 15, 16, 20, 21, 22),
+    # NEW: subject range used for LOSO training pool
+    loso_subject_range=(1, 9),   # inclusive (first, last)
+    # NEW: explicit left-out subject (can be inside or outside the range)
+    loso_left_out=None,
+    # NEW: subject-dependent split settings
+    subject_test_ratio=0.2,
+    seed=42,
+):
+    """
+    Primary entry point.
 
-def load_data_evaluate(dir_path, dataset_type, n_sub, mode_evaluate="LOSO"):
-    '''
-    Load the Corresponding Dataset Based on the Evaluation Mode
+    - mode_evaluate == "LOSO":
+        Train = all subjects in loso_subject_range except the left-out subject (if it is in range).
+        Test  = left-out subject (always).
+        If loso_left_out is outside loso_subject_range, it will still be used as the ONLY test subject,
+        and no subject is removed from the training range.
 
-    Parameters
-    ----------
-    dir_path : str
-        The directory name where the data is stored.
-    dataset_type : str
-        The value in ['A', 'B'], 'A' denotes BCI IV-2a dataset, and 'B' denotes BCI IV-2b dataset.
-    n_sub : int
-        The number of subject, the scope range from 1 to 9.
-    mode_evaluate : str, optional
-        The mode of evaluation. The default is "LOSO" for cross-subject classification. Other value represents subject-specific classification. 
-
-    Returns
-    -------
-    TYPE
-        DESCRIPTION.
-
-    '''
-    if mode_evaluate=="LOSO":
-        return load_data_LOSO(dir_path, dataset_type, n_sub)
+    - otherwise (subject-dependent):
+        Loads ONE subject, shuffles all trials, then splits into train/test by subject_test_ratio.
+    """
+    if mode_evaluate == "LOSO":
+        if loso_left_out is None:
+            loso_left_out = n_sub  # keep existing behavior if you pass n_sub as the fold subject
+        return load_data_LOSO(
+            dir_path=dir_path,
+            subject_left_out=loso_left_out,
+            chosen_nodes=chosen_nodes,
+            loso_subject_range=loso_subject_range,
+        )
     else:
-        return load_data_subject_dependent(dir_path, dataset_type, n_sub)
+        return load_data_subject_dependent(
+            dir_path=dir_path,
+            n_sub=n_sub,
+            chosen_nodes=chosen_nodes,
+            test_ratio=subject_test_ratio,
+            seed=seed,
+        )
 
 
-def load_data_subject_dependent(dir_path, dataset_type, n_sub):
-    '''
-    Load data for subject-specific classification
+def load_data_subject_dependent(dir_path, n_sub, chosen_nodes, test_ratio=0.2, seed=42):
+    """
+    Subject-specific:
+      - loads all trials for ONE person
+      - randomizes trial order
+      - train/test split
+    """
+    X, y = load_data(dir_path, chosen_nodes, n_sub)
 
-    Parameters
-    ----------
-    dir_path : str
-        The directory name where the data is stored.
-    dataset_type : str
-        The value in ['A', 'B'], 'A' denotes BCI IV-2a dataset, and 'B' denotes BCI IV-2b dataset.
-    n_sub : int
-        The number of subject, the scope range from 1 to 9.
+    # shuffle before split (your requirement)
+    rng = np.random.default_rng(seed)
+    idx = rng.permutation(X.shape[0])
+    X = X[idx]
+    y = y[idx]
 
-    '''
-    train_data, train_label = load_data(dir_path, dataset_type, n_sub, mode='train')
-    test_data, test_label = load_data(dir_path, dataset_type, n_sub, mode='test')
+    n_total = X.shape[0]
+    n_test = max(1, int(round(test_ratio * n_total)))
+    n_train = n_total - n_test
+
+    train_data = X[:n_train]
+    train_label = y[:n_train]
+    test_data = X[n_train:]
+    test_label = y[n_train:]
+
     return train_data, train_label, test_data, test_label
 
 
-def load_data_LOSO(dir_path, dataset_type, subject): 
-    """ Loading and Dividing of the data set based on the 
-    'Leave One Subject Out' (LOSO) evaluation approach. 
-    LOSO is used for  Subject-independent evaluation.
-    In LOSO, the model is trained and evaluated by several folds, equal to the 
-    number of subjects, and for each fold, one subject is used for evaluation
-    and the others for training. The LOSO evaluation technique ensures that 
-    separate subjects (not visible in the training data) are used to evaluate 
-    the model. 
-   
-        Parameters
-        ----------
-        dir_path: string
-            The directory name where the data is stored.
-        dataset_type: string
-            The value in ['A', 'B'], 'A' denotes BCI IV-2a dataset, and 'B' denotes BCI IV-2b dataset.
-        subject: int
-            number of subject in [1, .. ,9]
-            Here, the subject data is used  test the model and other subjects data
-            for training
+def load_data_LOSO(dir_path, subject_left_out, chosen_nodes, loso_subject_range=(1, 9)):
     """
-    
-    X_train, y_train = np.empty([0, 3]), np.empty([0, 3])
-    for n_sub in range (1, 10):
-        
-        X1, y1 = load_data(dir_path, dataset_type, n_sub, mode='train')
-        X2, y2 = load_data(dir_path, dataset_type, n_sub, mode='test')
-        X = np.concatenate((X1, X2), axis=0)
-        y = np.concatenate((y1, y2), axis=0)
-                   
-        if (n_sub == subject):
-            X_test = X
-            y_test = y
-        elif X_train.shape[0] == 0:
-            X_train = X
-            y_train = y
-        else:
-            X_train = np.concatenate((X_train, X), axis=0)
-            y_train = np.concatenate((y_train, y), axis=0)
+    LOSO (subject-independent):
+      - Training pool subjects = [first..last] inclusive, except subject_left_out if it is within that range
+      - Test subject = subject_left_out only (even if outside the range)
+    """
+    first_sub, last_sub = loso_subject_range
+    if first_sub > last_sub:
+        raise ValueError(f"Invalid loso_subject_range={loso_subject_range}. Must be (first <= last).")
+
+    # Always load test subject (can be outside training range)
+    X_test, y_test = load_data(dir_path, chosen_nodes, subject_left_out)
+
+    X_train_parts = []
+    y_train_parts = []
+
+    for n_sub in range(first_sub, last_sub + 1):
+        # If left-out subject is in the training range, exclude it from training
+        if n_sub == subject_left_out:
+            continue
+
+        X_sub, y_sub = load_data(dir_path, chosen_nodes, n_sub)
+        X_train_parts.append(X_sub)
+        y_train_parts.append(y_sub)
+
+    if len(X_train_parts) == 0:
+        raise ValueError(
+            "LOSO produced empty training set. "
+            f"Check loso_subject_range={loso_subject_range} and subject_left_out={subject_left_out}."
+        )
+
+    X_train = np.concatenate(X_train_parts, axis=0)
+    y_train = np.concatenate(y_train_parts, axis=0)
 
     return X_train, y_train, X_test, y_test
 
 
-def load_data(dir_path, dataset_type, n_sub, mode='train'):
-    '''
-    加载mat格式的数据返回data和label的ndarray
+def load_data(dir_path, chosen_nodes, n_sub):
+    """
+    Load all trials for a single subject from .pt files.
 
-    Parameters
-    ----------
-    dir_path : str
-        The directory name where the data is stored.
-    dataset_type : str
-        The value in ['A', 'B'], 'A' denotes BCI IV-2a dataset, and 'B' denotes BCI IV-2b dataset.
-    n_sub : int
-        The number of subject, the scope range from 1 to 9.
-    mode : str
-        The value in ['train', 'test'], for loading train or test dataset.
+    Expected structure:
+      dir_path/
+        sub_{n_sub}/
+          trial_00000.pt
+          trial_00001.pt
+          ...
 
-    Returns
-    -------
-    data : ndarray
-        train or test dataset
-    label : ndarray
+    Each trial_*.pt is a dict with:
+      "data": FloatTensor shape (60, 1000)
+      "label": LongTensor scalar
+    """
+    subject_path = os.path.join(dir_path, f"sub_{n_sub}")
 
-    '''
-    if dataset_type == 'C':
-        if mode=='train':
-            data_npz = np.load(dir_path + '{}{:02d}{}.npz'.format(dataset_type, n_sub, 'T'))
+    if not os.path.isdir(subject_path):
+        raise FileNotFoundError(f"Subject folder not found: {subject_path}")
 
-            # Access contents
-            data = data_npz["data"]
-            label = data_npz["labels"]
+    trial_files = sorted(f for f in os.listdir(subject_path) if f.endswith(".pt"))
+    if len(trial_files) == 0:
+        raise FileNotFoundError(f"No .pt trial files found in: {subject_path}")
 
-        else:
-            data_npz = np.load(dir_path + '{}{:02d}{}.npz'.format(dataset_type, n_sub, 'V'))
+    X_list, y_list = [], []
 
-            # Access contents
-            data = data_npz["data"]
-            label = data_npz["labels"]
-        
-        #label = np.array([int(str(l).strip()) for l in label])
-        cols_to_keep = [9, 10, 14, 15, 16, 20, 21, 22]
-        #cols_to_keep = [9, 10, 14, 15, 16, 20, 21, 22, 33, 44, 34, 55, 23, 44]
-        data = data[:, cols_to_keep, :]
-        print("=== DEBUG: DATASET CONTENTS ===")
-        print("Unique labels:", np.unique(label))
-        return data, label
+    for fname in trial_files:
+        file_path = os.path.join(subject_path, fname)
+        trial_dict = torch.load(file_path, map_location="cpu")
 
-    else:
-        if mode=='train':
-            mode_s = 'T'
-        else:
-            mode_s = 'E'
-        data_mat = scipy.io.loadmat(dir_path + '{}{:02d}{}.mat'.format(dataset_type, n_sub, mode_s))
-        data = data_mat['data']  # (288, 22, 1000)
-        label =data_mat['label']
-    
-        return data, label
+        data = trial_dict["data"]    # (60, 1000)
+        label = trial_dict["label"]  # scalar
+
+        data = data[chosen_nodes, :]  # (len(chosen_nodes), 1000)
+
+        X_list.append(data.numpy())
+        y_list.append(int(label.item()))
+
+    X = np.stack(X_list, axis=0)  # (n_trials, n_channels, 1000)
+    y = np.array(y_list)          # (n_trials,)
+
+    return X, y
+
 
 
 
