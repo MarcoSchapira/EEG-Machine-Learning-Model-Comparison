@@ -2,13 +2,14 @@ import numpy as np
 import os
 import torch
 import scipy.io as sio
-from tqdm import tqdm # A progress bar, install with: pip install tqdm
-
+from tqdm import tqdm
 
 
 # --- Configuration ---
-MAT_DATA_DIR = "/Users/marcoschapira/Documents/queens/capstone/local_data/EEG_files"
-PREPROCESSED_DIR = "/Users/marcoschapira/Documents/queens/capstone/local_data/EEG_PT_files2"
+MAT_DATA_DIR = "D:/EEG Data/EEG_11/EEG_Compact/"
+PREPROCESSED_DIR = os.path.join(MAT_DATA_DIR, "Processed_PerSubject_PT")
+os.makedirs(PREPROCESSED_DIR, exist_ok=True)
+
 ALL_SUBJECTS = list(range(1, 26))
 ALL_SESSIONS = [1, 2, 3]
 ALL_ACTIONS = ["multigrasp", "reaching", "twist"]
@@ -28,7 +29,6 @@ LABEL_REMAPPING = {
 
 def preprocess_data():
     print(f"Starting preprocessing...")
-    os.makedirs(PREPROCESSED_DIR, exist_ok=True)
     
     global_trial_count = 0
     all_labels = []
@@ -36,16 +36,15 @@ def preprocess_data():
 
     #! Loop through all subjects
     for sub in tqdm(ALL_SUBJECTS, desc="Processing Subjects"):
-        subject_output_dir = os.path.join(PREPROCESSED_DIR, f"sub_{sub}")
-        os.makedirs(subject_output_dir, exist_ok=True)
-        trial_count_for_subject = 0
+        subject_data = []
+        subject_labels = []
         
         #! Loop through all sessions
         for sess in ALL_SESSIONS:
-
+            
             #! Loop through all actions (3 actions: multigrasp, reaching, twist)
             for action in ALL_ACTIONS:
-
+                
                 #! Load the data
                 filename = f"EEG_session{sess}_sub{sub}_{action}_realMove_compact.mat"
                 file_path = os.path.join(MAT_DATA_DIR, filename)
@@ -78,28 +77,35 @@ def preprocess_data():
                         if mapping:
                             for old_label, new_label in mapping.items():
                                 remapped_labels[labels_raw == old_label] = new_label
-                        
-                        all_labels.extend(remapped_labels)
 
-                        #! --- Save each trial individually ---
-                        for i in range(trial_data.shape[0]):
-                            data_trial = torch.tensor(trial_data[i], dtype=torch.float32)
-                            label_trial = torch.tensor(remapped_labels[i], dtype=torch.long)
-                            
-                            save_obj = {'data': data_trial, 'label': label_trial}
-                            
-                            output_filename = f"trial_{trial_count_for_subject:05d}.pt"
-                            output_path = os.path.join(subject_output_dir, output_filename)
-                            torch.save(save_obj, output_path)
-                            
-                            trial_count_for_subject += 1
-                            global_trial_count += 1
+                        #! --- Gather trials for the subject ---
+                        subject_data.append(trial_data)
+                        all_labels.extend(remapped_labels) 
+                        subject_labels.append(remapped_labels)
                             
                     except Exception as e:
                         print(f"Error loading {file_path}: {e}")
                 else:
                     print(f"File {file_path} does not exist")
 
+        #! --- Combine, Cast, and Save for the Subject ---
+        if subject_data: # Make sure we actually found data for this subject
+            # Concatenate all gathered trials into single arrays
+            sub_data_np = np.concatenate(subject_data, axis=0)
+            sub_labels_np = np.concatenate(subject_labels, axis=0)
+            
+            # Update global trial count for your metadata file
+            global_trial_count += sub_data_np.shape[0]
+            
+            # Cast to PyTorch tensors with correct dtypes
+            tensor_data = torch.tensor(sub_data_np, dtype=torch.float32)
+            tensor_labels = torch.tensor(sub_labels_np, dtype=torch.long)
+            
+            # Save as a single .pt file per subject
+            output_path = os.path.join(PREPROCESSED_DIR, f"sub_{sub:02d}.pt")
+            torch.save({'data': tensor_data, 'label': tensor_labels}, output_path)
+    
+    
     #! --- Save metadata file ---
     unique_labels = np.unique(all_labels)
     metadata['n_classes'] = len(unique_labels)

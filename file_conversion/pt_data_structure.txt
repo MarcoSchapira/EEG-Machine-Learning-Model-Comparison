@@ -1,0 +1,36 @@
+dataset_root: "Processed_PerSubject_PT"
+
+contains:
+  metadata.pt:
+    type: "dictionary"
+    keys:
+      n_channels: int
+      n_samples: int
+      n_classes: int
+      total_trials: int
+
+  subject_files:
+    - sub_01.pt
+    - sub_02.pt
+    - sub_03.pt
+    - ...
+    - sub_25.pt
+
+
+In each subject file (sub_XX.pt):
+file_type: "pt"
+object_type: "dictionary"
+
+keys:
+  data:
+    type: "torch.FloatTensor"
+    shape: [N_trials, n_channels, n_samples]  # e.g., [Num_Trials, 60, 1000]
+    dtype: "float32"
+    description: "Concatenated EEG trial data for the entire subject"
+
+  label:
+    type: "torch.LongTensor"
+    shape: [N_trials]                         # 1D array of labels for the subject
+    dtype: "int64"
+    value_range: [0, 11]
+    description: "Remapped class labels corresponding to each trial"
