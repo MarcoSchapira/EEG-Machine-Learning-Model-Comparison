@@ -379,13 +379,13 @@ class EEGEncoder(nn.Module):
         self.n_windows = n_windows
         self.fuse = fuse
         self.dense_weight_decay = 0.5
-        self.from_logits = False
+        self.from_logits = True
 
         F2 = eegn_F1 * eegn_D
 
         # self.conv_block = ConvBlock(eegn_F1, eegn_F1, eegn_D, eegn_kernelSize, eegn_poolSize, eegn_dropout)
         self.conv_block = ConvBlock(F1=eegn_F1, kernLength=eegn_kernelSize, poolSize=7, D=2, in_chans=22, dropout=eegn_dropout)
-        self.attention_block = AttentionBlock(embed_dim=F2, num_heads=4)  # Define your attention block
+        #self.attention_block = AttentionBlock(embed_dim=F2, num_heads=4)  # Define your attention block
         self.tcn_blocks = nn.ModuleList([TCNBlock_(F2, tcn_depth, tcn_kernelSize, tcn_filters, tcn_dropout, tcn_activation) for _ in range(n_windows)])
         self.dense_layers = nn.ModuleList([LinearL2(tcn_filters, n_classes, 0.5) for _ in range(n_windows)])
         self.aa_drop = nn.Dropout(0.3)

@@ -6,7 +6,6 @@ from torch import Tensor
 from einops.layers.torch import Rearrange
 from einops import rearrange
 import torch.nn.functional as F
-from Dataset import numberClassChannel
 
 cudnn.benchmark = False
 cudnn.deterministic = True
@@ -14,7 +13,7 @@ cudnn.deterministic = True
 class Parameters():
     def __init__(self, dropout_rate):
         # The number of heads in the multi-head self-attention mechanism
-        self.heads = 8
+        self.heads = 4 #4 was working good with mixup
         # Transformer encoder depth
         self.depth = 6
         # The total number of feature channels of the multi-scale convolution module
@@ -25,6 +24,20 @@ class Parameters():
         self.pooling_size = 52  
         # drop out rate in Convolution module, 0.5 for subject-specific, and 0.25 for cross-subject
         self.dropout_rate = dropout_rate
+
+class HybridPool2d(nn.Module):
+    """
+    Calculates both Max and Average pooling, then blends them.
+    Captures sharp ERP spikes while maintaining baseline noise filtering.
+    """
+    def __init__(self, kernel_size):
+        super().__init__()
+        self.max_pool = nn.MaxPool2d(kernel_size)
+        self.avg_pool = nn.AvgPool2d(kernel_size)
+        
+    def forward(self, x):
+        # Calculate both, add them, and divide by 2 to blend them evenly
+        return 0.5 * (self.max_pool(x) + self.avg_pool(x))
 
 
 class PatchEmbeddingCNN(nn.Module):
@@ -42,7 +55,7 @@ class PatchEmbeddingCNN(nn.Module):
             nn.Conv2d(f1, f1, (number_channel, 1), (1, 1), groups=f1),
             nn.BatchNorm2d(f1),
             nn.ELU(),
-            nn.AvgPool2d((1,pooling_size)), 
+            nn.AvgPool2d((1, pooling_size)), 
             nn.Dropout(dropout_rate),
         )
         self.cnn2 = nn.Sequential(
@@ -50,7 +63,7 @@ class PatchEmbeddingCNN(nn.Module):
             nn.Conv2d(f1, f1, (number_channel, 1), (1, 1), groups=f1),
             nn.BatchNorm2d(f1),
             nn.ELU(),
-            nn.AvgPool2d((1,pooling_size)), 
+            nn.AvgPool2d((1, pooling_size)), 
             nn.Dropout(dropout_rate),
         )        
         self.cnn3 = nn.Sequential(
@@ -58,7 +71,7 @@ class PatchEmbeddingCNN(nn.Module):
             nn.Conv2d(f1, f1, (number_channel, 1), (1, 1), groups=f1),
             nn.BatchNorm2d(f1),
             nn.ELU(),
-            nn.AvgPool2d((1,pooling_size)), 
+            nn.AvgPool2d((1, pooling_size)), 
             nn.Dropout(dropout_rate),
         )
         self.projection = nn.Sequential(
