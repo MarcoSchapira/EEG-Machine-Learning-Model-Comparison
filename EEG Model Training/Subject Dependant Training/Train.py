@@ -2,12 +2,10 @@ import os
 import numpy as np
 import pandas as pd
 import random
-import datetime
 import torch
 from torch.backends import cudnn
 import warnings
 from MSCFormerModel import Parameters, MSCFormer
-#from EEGEncoderTrain import EEGEncoder
 from EEGEncoderModel import EEGEncoder
 from TCNet_Model import TCNetModel
 from sklearn.model_selection import StratifiedKFold
@@ -104,7 +102,7 @@ def train_subject(model, nSub, X_train, y_train, X_val, y_val, X_test, y_test, c
 
                 shuffle_idx = torch.randperm(img.size(0))
                 img, label = img[shuffle_idx], label[shuffle_idx] 
-            
+          
             if config['aug_mode'] in ['mixup', 'both']:
                 # --- 1. GENERATE MIXUP DATA ---
                 # Creates an augmented batch of equal size to the original batch
@@ -122,6 +120,7 @@ def train_subject(model, nSub, X_train, y_train, X_val, y_val, X_test, y_test, c
                 outputs_mixed = outputs[batch_size:]
                 
                 # --- 3. CALCULATE LOSS ---
+                #ce_loss = nn.CrossEntropyLoss(weight=class_weights)
                 loss_orig = loss_func(outputs_orig, label)
                 loss_mixed = mixup_criterion(loss_func, outputs_mixed, y_a, y_b, lam)
                 loss = (loss_orig + loss_mixed) / 2.0
@@ -226,19 +225,19 @@ if __name__ == "__main__":
         'data_dir': r'D:/EEG Data/EEG_11/EEG_Compact/Processed_PerSubject_PT/',
         'model_name': 'EEGEncoder', 
         'eval_mode': 'LOSO-No',
-        'dropout': 0.25,
+        'dropout': 0.3,
         'dataset_type': 'C',
         'n_splits': 5,
         'aug_mode': 'mixup',
         # Split: Train ratio will be leftover percentage right now its set 80%/10%/10%
         'test_ratio': 0.10,  
         'T_max': 300,
-        'cols_to_keep': list(range(4, 28)) + list(range(38, 58)),
+        'cols_to_keep': [0, 4, 6, 8, 10, 12, 13, 15, 19, 21, 23, 25, 27, 31, 35, 37, 38, 40, 43, 45, 46, 48, 51, 53, 56, 57, 58], #list(range(4, 28)) + list(range(38, 58)),
         'n_aug': 2,
         'n_seg': 8,
         'epochs': 1000,
         'warmup_epochs': 15,
-        'patience': 30,  # Wait 30 epochs for validation loss to improve before stopping
+        'patience': 40,  # Wait 30 epochs for validation loss to improve before stopping
         'batch_size': 72,
         'lr': 0.001,
         'heads': 2,
@@ -249,6 +248,7 @@ if __name__ == "__main__":
         'num_classes': 12,
         'make_easier': True  
     }
+    if CONFIG['model_name'] == 'EEGEncoder': CONFIG['T_max'] = 200
     
     if CONFIG['eval_mode'] == 'LOSO': CONFIG['dropout'] = 0.2
 
@@ -258,14 +258,15 @@ if __name__ == "__main__":
         CONFIG['num_channels'] = len(CONFIG['cols_to_keep'])
 
     CONFIG['result_dir'] = f"{CONFIG['dataset_type']}_{CONFIG['model_name']}"
-    os.makedirs(CONFIG['result_dir'], exist_ok=True)
+    if CONFIG['result_dir'] :
+      os.makedirs(CONFIG['result_dir'], exist_ok=True)
 
     file_process = os.path.join(CONFIG['result_dir'], "process_train.xlsx")
     file_pred = os.path.join(CONFIG['result_dir'], "pred_true.xlsx")
     production_results = []
 
     #! --- MAIN SUBJECT LOOP ---
-    for sub_idx in range(1, 26):
+    for sub_idx in [2]:
         # Set seeds for reproducibility
         seed_n = np.random.randint(2024)
         random.seed(seed_n)
@@ -278,6 +279,20 @@ if __name__ == "__main__":
             CONFIG['model_name'], CONFIG['data_dir'], sub_idx, CONFIG['eval_mode'], 
             CONFIG['test_ratio'], CONFIG['cols_to_keep'], CONFIG['make_easier']
         )
+        
+        # --- SAVE TEST DATA FOR LATER ---
+        test_data_filename = os.path.join(CONFIG['result_dir'], f"sub_{sub_idx}_test_split.pt")
+        torch.save({
+            'x_test': X_te,
+            'y_test': y_te,
+            'subject_id': sub_idx,
+            'config_used': {
+                'cols_to_keep': CONFIG['cols_to_keep'],
+                'make_easier': CONFIG['make_easier'],
+                'test_ratio': CONFIG['test_ratio']
+            }
+        }, test_data_filename)
+        print(f"!!! Test data for Subject {sub_idx} saved to: {test_data_filename} !!!")
 
         # Initialize Stratified K-Fold
         skf = StratifiedKFold(n_splits=CONFIG['n_splits'], shuffle=True, random_state=seed_n)
@@ -351,10 +366,11 @@ if __name__ == "__main__":
             df_pred_true = pd.DataFrame({'pred': pred_cpu, 'true': true_cpu})
             save_to_excel(file_process, df_process, f"{sub_idx}_Fold_{fold+1}")
             save_to_excel(file_pred, df_pred_true, f"{sub_idx}_Fold_{fold+1}")
-
+        
         
         #! --- PHASE 2: PRODUCTION MODEL ---
         # Calculate optimal epochs based on K-Fold results
+        #optimal_epochs = 150
         optimal_epochs = int(np.mean(fold_best_epochs))
         print(f"\n========== Phase 2: Production Run for Subject {sub_idx} ==========")
         print(f"Optimal epochs calculated from folds: {optimal_epochs}")
@@ -382,22 +398,32 @@ if __name__ == "__main__":
             model, sub_idx, X_tv_scaled, y_tv, None, None, X_te_scaled, y_te, CONFIG, run_name="Production"
         )
 
-        # Save Excel Results for Production
-        df_pred_true = pd.DataFrame({'pred': Y_pred.cpu().numpy().astype(int), 'true': Y_true.cpu().numpy().astype(int)})
-        save_to_excel(file_process, df_process, f"{sub_idx}_Production")
-        save_to_excel(file_pred, df_pred_true, f"{sub_idx}_Production")
-
-        # Restore original config epochs for the next subject
-        CONFIG['epochs'] = original_epochs
-
-        # Track Final Metrics
+        # Track Final Metrics First
         true_cpu = Y_true.cpu().numpy().astype(int)
         pred_cpu = Y_pred.cpu().numpy().astype(int)
         accuracy, precison, recall, f1, kappa = calMetrics(true_cpu, pred_cpu)
+        
+        # Append to the Production Results dictionary for the final printout
         production_results.append({
             'accuracy': accuracy*100, 'precision': precison*100, 
             'recall': recall*100, 'f1': f1*100, 'kappa': kappa*100
         })
+
+        # CREATE AND APPEND FINAL METRICS ROW (Same as Phase 1)
+        final_metrics_row = pd.DataFrame([{
+            'epoch': 'FINAL SUMMARY', 
+            'Accuracy': accuracy*100, 
+            'Precision': precison*100, 
+            'Recall': recall*100, 
+            'F1 Score': f1*100, 
+            'Kappa': kappa*100
+        }])
+        df_process = pd.concat([df_process, final_metrics_row], ignore_index=True)
+
+        # Save Excel Results for Production AFTER appending metrics
+        df_pred_true = pd.DataFrame({'pred': pred_cpu, 'true': true_cpu})
+        save_to_excel(file_process, df_process, f"{sub_idx}_Production")
+        save_to_excel(file_pred, df_pred_true, f"{sub_idx}_Production")
 
     # Final Output Summaries
     df_result = pd.DataFrame(production_results)

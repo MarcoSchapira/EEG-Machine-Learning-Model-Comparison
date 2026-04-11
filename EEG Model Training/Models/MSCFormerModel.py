@@ -15,7 +15,7 @@ class Parameters():
         # The number of heads in the multi-head self-attention mechanism
         self.heads = 4 #4 was working good with mixup
         # Transformer encoder depth
-        self.depth = 6
+        self.depth = 8
         # The total number of feature channels of the multi-scale convolution module
         self.emb_size = 16*3
         # The number of feature channels at each time scale of the convolution module

@@ -36,12 +36,11 @@ class FocalLoss(nn.Module):
         # 4. Apply the weight to the CE loss and average across the batch
         loss = focal_weight * ce_loss
 
-        #new update
         if self.weight is not None:
             return loss.sum() / self.weight[targets].sum()
         else:
             return loss.mean()
-        #new Update
+       
         
         #return loss.mean()
 
@@ -154,6 +153,9 @@ def get_source_data(model, root_dir, nSub, evaluate_mode, test_ratio, cols_to_ke
     # Merge 6,7,8 into Class 6 | Merge 9,10 into Class 7 | Shift 11 (Rest) to Class 8
     if make_easier == True:
         y = np.copy(y_raw)
+        #y[np.isin(y_raw, [0, 1])] = 0
+        #y[np.isin(y_raw, [2, 3])] = 1
+        #y[np.isin(y_raw, [4, 5])] = 2
         y[np.isin(y_raw, [6, 7, 8])] = 6
         y[np.isin(y_raw, [9, 10])] = 7
         y[y_raw == 11] = 8
@@ -242,5 +244,3 @@ def mixup_criterion(criterion, pred, y_a, y_b, lam):
     Calculates the loss against both original labels and blends the result.
     """
     return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
-
-
