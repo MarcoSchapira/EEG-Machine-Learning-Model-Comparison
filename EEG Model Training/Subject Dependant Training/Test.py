@@ -4,19 +4,49 @@ import tkinter as tk
 from tkinter import font
 import cv2
 from PIL import Image, ImageTk
-import matplotlib.pyplot as plt
+
+import matplotlib
+
+matplotlib.use("TkAgg")
+
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
 
 import torch
 import torch.nn.functional as F
 import numpy as np
 
-# --- Import your custom models ---
-from MSCFormerModel import MSCFormer, Parameters
-from EEGEncoderModel import EEGEncoder
-from TCNet_Model import TCNetModel 
+def _import_model_module_for_unpickle(model_name):
+    """Import only the wrapper module pickle needs; TCNet pulls torcheeg/torch_scatter."""
+    if model_name == "MSCFormer":
+        import MSCFormerModel
+    elif model_name == "EEGEncoder":
+        import EEGEncoderModel
+    elif model_name == "TCNet":
+        import TCNet_Model
+    else:
+        raise ValueError(f"Unknown model architecture: {model_name}")
 
-def prepare_sample(eeg_sample, model_name):
+
+def _torch_load_trusted(path):
+    """Local checkpoints are full pickles; PyTorch 2.6+ defaults weights_only=True."""
+    try:
+        return torch.load(path, map_location="cpu", weights_only=False)
+    except TypeError:
+        return torch.load(path, map_location="cpu")
+
+
+def inference_device():
+    """Prefer CUDA, then Apple MPS, then CPU (typical Mac setup has no CUDA)."""
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    mps = getattr(torch.backends, "mps", None)
+    if mps is not None and mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
+def prepare_sample(eeg_sample, model_name, device):
     """
     Prepares a raw numpy array for inference.
     """
@@ -25,7 +55,7 @@ def prepare_sample(eeg_sample, model_name):
     eeg_sample = (eeg_sample - sample_mean) / sample_std
 
     # 2. Convert to Torch Tensor
-    tensor_sample = torch.from_numpy(eeg_sample).float().cuda()
+    tensor_sample = torch.from_numpy(eeg_sample).float().to(device)
 
     # 3. Reshape based on model requirements
     if model_name in ['MSCFormer', 'EEGEncoder']:
@@ -52,23 +82,32 @@ class EEGInferenceApp:
             "Arm Up", "Arm Down", "Hand Grasping", "Wrist Rotation", "Rest"
         ]
         
-        # Hardware setup
-        os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
-        os.environ["CUDA_VISIBLE_DEVICES"] = '0'
-        
+        self.device = inference_device()
+        if self.device.type == "cuda":
+            os.environ.setdefault("CUDA_DEVICE_ORDER", "PCI_BUS_ID")
+            os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
+
         # Load Model once at startup to prevent GUI freezing
         print(f"Loading {model_name} from {model_path}...")
-        self.model = torch.load(model_path).cuda()
+        print(f"Using torch device: {self.device}")
+        _import_model_module_for_unpickle(model_name)
+        self.model = _torch_load_trusted(model_path).to(self.device)
         self.model.eval()
         
         # Load Test Data
         print(f"Loading test data from {data_path}...")
-        # Assuming the .pt file is a dictionary with 'data' and 'label' keys
-        test_data = torch.load(data_path)
-        self.eeg_data = test_data['x_test']   # Expected shape: (Samples, Channels, Time)
-        self.eeg_labels = test_data['y_test'] # Expected shape: (Samples,)
-        #self.eeg_data = test_data['data']  
-        #self.eeg_labels = test_data['label']
+        test_data = _torch_load_trusted(data_path)
+        if isinstance(test_data, dict) and "x_test" in test_data and "y_test" in test_data:
+            self.eeg_data = test_data["x_test"]
+            self.eeg_labels = test_data["y_test"]
+        elif isinstance(test_data, dict) and "data" in test_data and "label" in test_data:
+            self.eeg_data = test_data["data"]
+            self.eeg_labels = test_data["label"]
+        else:
+            raise KeyError(
+                "Expected .pt dict with ('x_test','y_test') or ('data','label'); "
+                f"got keys: {list(test_data.keys()) if isinstance(test_data, dict) else type(test_data)}"
+            )
 
         if channels_to_keep is not None:
             # Slices the array/tensor to keep all samples (:), only specified channels, and all time steps (:)
@@ -78,8 +117,11 @@ class EEGInferenceApp:
         # Video playback variables
         self.video_cap = None
         self.video_after_id = None
-        
+
+        print("Building GUI (matplotlib + Tkinter)...", flush=True)
         self.setup_gui()
+        print("GUI ready — a window should appear; this terminal stays busy until you close it.", flush=True)
+        self.root.update()
 
     def setup_gui(self):
         # --- TOP FRAME: 9 Buttons ---
@@ -108,11 +150,12 @@ class EEGInferenceApp:
         plot_frame = tk.Frame(mid_frame, width=500, height=400)
         plot_frame.pack(side=tk.RIGHT, padx=20, expand=True)
         
-        self.fig, self.ax = plt.subplots(figsize=(5, 4))
+        self.fig = Figure(figsize=(5, 4))
+        self.ax = self.fig.add_subplot(111)
         self.ax.set_title("Waiting for selection...")
         self.ax.set_xlabel("Time Steps")
         self.ax.set_ylabel("Amplitude")
-        
+
         self.canvas = FigureCanvasTkAgg(self.fig, master=plot_frame)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
@@ -150,7 +193,7 @@ class EEGInferenceApp:
 
     def run_inference(self, sample):
         """Runs the loaded model on the specific sample."""
-        input_tensor = prepare_sample(sample, self.model_name)
+        input_tensor = prepare_sample(sample, self.model_name, self.device)
 
         with torch.no_grad():
             _, logits = self.model(input_tensor)
@@ -218,7 +261,7 @@ def inspect_pt_file(file_path):
     print(f"--- Inspecting: {file_path} ---")
     try:
         # Load the file
-        data = torch.load(file_path)
+        data = _torch_load_trusted(file_path)
         print(f"Top-level data type: {type(data)}\n")
         
         # If it's a dictionary (most common for datasets)
@@ -250,14 +293,14 @@ def inspect_pt_file(file_path):
 
 if __name__ == "__main__":
     # --- CONFIGURATION ---
-    TARGET_SUBJECT = 9
-    MODEL_ARCHITECTURE = 'TCNet'
-    DATASET_TYPE = "C"
-    
-    # Paths (Modify these to point to your actual directories)
-    MODEL_FILE = f"./{DATASET_TYPE}_{MODEL_ARCHITECTURE}/model_{TARGET_SUBJECT}_Production.pth"
-    TEST_DATA_FILE = f"./{DATASET_TYPE}_{MODEL_ARCHITECTURE}/sub_9_test_split.pt" # Point this to your test dataset .pt file
-    VIDEO_DIRECTORY = "./videos"      # Directory containing snippet videos of each action
+    MODEL_ARCHITECTURE = "MSCFormer"
+
+    # Resolve next to this script so it works no matter which folder you run from.
+    _here = os.path.dirname(os.path.abspath(__file__))
+    _ben_data = os.path.normpath(os.path.join(_here, "..", "Test_WithBenData"))
+    MODEL_FILE = os.path.join(_ben_data, "MSCFormer_model_sub1_27node_Production.pth")
+    TEST_DATA_FILE = os.path.join(_ben_data, "EEG_Ben.pt")
+    VIDEO_DIRECTORY = os.path.join(_here, "videos")
     
     #inspect_pt_file(TEST_DATA_FILE)
     CHANNELS_TO_KEEP = list(range(27))
