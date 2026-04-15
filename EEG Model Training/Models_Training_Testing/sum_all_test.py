@@ -124,16 +124,18 @@ def main():
 
     MODEL_ARCHITECTURE = "MSCFormer"
     _here = os.path.dirname(os.path.abspath(__file__))
-    _ben_data = os.path.normpath(os.path.join(_here, "..", "Test_WithBenData"))
+    weights = os.path.normpath(os.path.join(_here, "..", "Model_Weights"))
     if MODEL_ARCHITECTURE == "MSCFormer":
-        model_path = os.path.join(_ben_data, "MSCFormer_model_sub1_27node_Production.pth")
+        model_path = os.path.join(weights, "Generalized_MSCFormer_model_sub1_27node_Production.pth")
     elif MODEL_ARCHITECTURE == "EEGEncoder":
-        model_path = os.path.join(_ben_data, "EEGEncoder_model_sub1_27node_Production.pth")
+        model_path = os.path.join(weights, "Generalized_EEGEncoder_model_sub1_27node_Production.pth")
     elif MODEL_ARCHITECTURE == "TCNet":
-        model_path = os.path.join(_ben_data, "TCNet_model_sub1_27node_Production.pth")
+        model_path = os.path.join(weights, "Generalized_TCNet_model_sub1_27node_Production.pth")
     else:
         raise ValueError(f"Unknown model architecture: {MODEL_ARCHITECTURE}")
-    data_path = os.path.join(_ben_data, "EEG_Ben.pt")
+
+    test_data = os.path.normpath(os.path.join(_here, "..", "Test_Data"))
+    data_path = os.path.join(test_data, "EEG_Collected_Data.pt")
     channels_to_keep = list(range(27))
 
     device = inference_device()

@@ -299,16 +299,16 @@ if __name__ == "__main__":
     _here = os.path.dirname(os.path.abspath(__file__))
     weights = os.path.normpath(os.path.join(_here, "..", "Model_Weights"))
     if MODEL_ARCHITECTURE == "MSCFormer":
-        MODEL_FILE = os.path.join(weights, "MSCFormer_model_sub1_27node_Production.pth")
+        MODEL_FILE = os.path.join(weights, "Generalized_MSCFormer_model_sub1_27node_Production.pth")
     elif MODEL_ARCHITECTURE == "EEGEncoder":
-        MODEL_FILE = os.path.join(weights, "EEGEncoder_model_sub1_27node_Production.pth")
+        MODEL_FILE = os.path.join(weights, "Generalized_EEGEncoder_model_sub1_27node_Production.pth")
     elif MODEL_ARCHITECTURE == "TCNet":
-        MODEL_FILE = os.path.join(weights, "TCNet_model_sub1_27node_Production.pth")
+        MODEL_FILE = os.path.join(weights, "Generalized_TCNet_model_sub1_27node_Production.pth")
     else:
         raise ValueError(f"Unknown model architecture: {MODEL_ARCHITECTURE}")
 
     test_data = os.path.normpath(os.path.join(_here, "..", "Test_Data"))
-    TEST_DATA_FILE = os.path.join(test_data, "EEG_Ben.pt")
+    TEST_DATA_FILE = os.path.join(test_data, "EEG_Collected_Data.pt")
     VIDEO_DIRECTORY = os.path.join(_here, "videos")
     
     #inspect_pt_file(TEST_DATA_FILE)
