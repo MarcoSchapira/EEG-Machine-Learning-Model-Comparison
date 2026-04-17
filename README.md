@@ -199,26 +199,39 @@ These metrics are used to account for class imbalance and provide a more complet
 
 ```text
 .
-├── training/
-│   ├── train_subject_dependent.py
-│   └── train_loso.py
-├── utils/
-├── models/
-│   ├── tcnet.py
-│   ├── mscformer.py
-│   └── eegencoder.py
-├── emg_models/
-├── evaluation/
-│   ├── evaluate.py
-│   └── metrics.py
-├── data/
-│   ├── processed_pt/
-│   └── raw/
-├── visualization/
-│   └── plots.py
-├── scripts/
-│   └── preprocessing.py
-└── README.md
+├── EEG Model Training/                    # EEG training, inference, and saved weights
+│   ├── Models_Training_Testing/
+│   │   ├── Dataset.py                     # PyTorch dataset / loading
+│   │   ├── TCNet_Model.py                 # EEG-TCNet
+│   │   ├── MSCFormerModel.py              # MSCFormer
+│   │   ├── EEGEncoderModel.py             # EEGEncoder
+│   │   ├── Train_SUBJECT-DEPENDANT.py     # subject-dependent (eval_mode LOSO-No; 5-fold CV)
+│   │   ├── Train_GENERALIZED.py           # subject-independent LOSO (leave-one-subject-out)
+│   │   ├── Test_gui.py                    # GUI for testing / inference
+│   │   └── sum_all_test.py
+│   ├── Model_Weights/
+│   │   ├── Generalized_TCNet_model_sub1_27node_Production.pth
+│   │   ├── Generalized_TCNet_model_sub1_60node_Production.pth
+│   │   ├── Generalized_MSCFormer_model_sub1_27node_Production.pth
+│   │   ├── Generalized_MSCFormer_model_sub1_60node_Production.pth
+│   │   ├── Generalized_EEGEncoder_model_sub1_27node_Production.pth
+│   │   └── Generalized_EEGEncoder_model_sub1_60node_Production.pth
+│   └── Test_Data/
+│       └── EEG_Collected_Data.pt
+├── EEG Data Conversion/
+│   ├── Convert_Mat_to_Tensor_and_Remap_Labels.py
+│   ├── Downsample_and_split_EEG_Trials_.py
+│   └── pt_data_structure.txt
+├── Prof. Manson Lab EEG Data Conversion/
+│   └── Process_and_Split_Collected_Data.py
+├── Visualize Matlab/                      # MATLAB-derived data visualization helpers
+├── Visualize .pt/                         # inspect/compare .pt tensor files
+├── deprecated_files/                      # older loaders / experiments (not primary path)
+├── Reference Documents/                   # papers, dataset_description.json
+├── Pictures/
+├── requirements.txt
+├── README.md
+└── Comparative Analysis of Machine Learning Methods for Enhancing Intuitive Control of Upper-Limb Prosthetics.pdf
 ```
 
 ---
