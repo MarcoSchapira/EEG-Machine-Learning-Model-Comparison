@@ -142,7 +142,7 @@ These metrics are used to account for class imbalance and provide a more complet
 
 ### EEG Classification (9 Classes)
 
-| Model      | Subject-Dependent<br> | Subject-Independent<br>(27 nodes) | Subject-Independent<br>(60 nodes) |
+| Model      | Subject-Dependent<br>(27 nodes) | Subject-Independent<br>(27 nodes) | Subject-Independent<br>(60 nodes) |
 | ---------- | ------------------------------- | --------------------------------- | --------------------------------- |
 | EEG-TCNet  | 70.69%                          | 35.30%                            | 46.19%                            |
 | MSCFormer  | 74.32%                          | 48.26%                            | 49.98%                            |
