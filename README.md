@@ -141,34 +141,11 @@ These metrics are used to account for class imbalance and provide a more complet
 
 ### EEG Classification
 
-#### Subject-Dependent (9 classes)
-
-
-| Model      | Accuracy |
-| ---------- | -------- |
-| EEG-TCNet  | 70.69%   |
-| MSCFormer  | 74.32%   |
-| EEGEncoder | 76.43%   |
-
-
-#### Subject-Independent (27 nodes)
-
-
-| Model      | Accuracy |
-| ---------- | -------- |
-| EEG-TCNet  | 35.30%   |
-| MSCFormer  | 48.26%   |
-| EEGEncoder | 54.04%   |
-
-
-#### Subject-Independent (60 nodes)
-
-
-| Model      | Accuracy |
-| ---------- | -------- |
-| EEG-TCNet  | 46.19%   |
-| MSCFormer  | 49.98%   |
-| EEGEncoder | 50.77%   |
+| Model      | Subject-Dependent<br>(9 classes) | Subject-Independent<br>(27 nodes) | Subject-Independent<br>(60 nodes) |
+| ---------- | ------------------------------- | --------------------------------- | --------------------------------- |
+| EEG-TCNet  | 70.69%                          | 35.30%                            | 46.19%                            |
+| MSCFormer  | 74.32%                          | 48.26%                            | 49.98%                            |
+| EEGEncoder | 76.43%                          | 54.04%                            | 50.77%                            |
 
 
 ---
@@ -186,16 +163,6 @@ These metrics are used to account for class imbalance and provide a more complet
 | TCN-LSTM             | 32.05%   |
 
 
-#### Reduced Classes (Best Case)
-
-
-| Nodes | Accuracy |
-| ----- | -------- |
-| 6     | 72.81%   |
-| 4     | 71.30%   |
-| 2     | 55.39%   |
-
-
 ---
 
 ## Key Findings
@@ -206,36 +173,6 @@ These metrics are used to account for class imbalance and provide a more complet
 - EMG signals are **not sufficiently distinct** for full multi-class control
 - Regression-based EMG control is unstable for complex movements
 - Models fail completely on real-world data due to environmental mismatch
-
----
-
-## Robotic Arm Control
-
-- Robot: **Elephant Robotics myCobot 280 (6 DOF + gripper)**  
-- Real-time control achieved with no noticeable delay  
-- Regression outputs did not reliably control moving joints  
-- Static joints were predicted accurately, dynamic joints were not
-
----
-
-## Limitations
-
-- Strong sensitivity to environmental noise (lighting, movement, sound)
-- Poor generalization across subjects (BCI illiteracy)
-- Limited EMG signal separability
-- Small custom dataset for validation
-- Regression approach not robust for real-time control
-
----
-
-## Future Work
-
-- Transfer learning for subject-independent EEG models  
-- Pretraining on large-scale EEG datasets  
-- Fine-tuning per user  
-- Improved EMG electrode placement  
-- Alternative control strategies (discrete + continuous hybrid)  
-- More controlled data collection environments
 
 ---
 
