@@ -2,7 +2,7 @@
 
 This project investigates the use of EEG and EMG signals for classifying human motor movements and enabling intuitive control of upper-limb prosthetics. Multiple deep learning architectures are evaluated for both classification accuracy and real-time control performance in a robotic arm system.
 
-Full report (PDF): [open on GitHub](https://github.com/MarcoSchapira/EEG-Machine-Learning-Model-Comparison/blob/main/Comparative%20Analysis%20of%20Machine%20Learning%20Methods%20for%20Enhancing%20Intuitive%20Control%20of%20Upper-Limb%20Prosthetics.pdf)
+Full report (PDF): [open on GitHub](https://github.com/MarcoSchapira/EEG-Machine-Learning-Model-Comparison/blob/main/Comparative%20Analysis%20of%20Machine%20Learning%20Methods%20for%20Enhancing%20Intuitive%20Control%20of%20Upper-Limb%20Prosthetics.pdf) 
 Key Result: 76% (subject-dependent EEG), 54% (subject-independent EEG)
 
 ## Authors
