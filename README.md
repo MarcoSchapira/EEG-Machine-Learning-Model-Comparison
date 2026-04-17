@@ -2,7 +2,7 @@
 
 This project investigates the use of EEG and EMG signals for classifying human motor movements and enabling intuitive control of upper-limb prosthetics. Multiple deep learning architectures are evaluated for both classification accuracy and real-time control performance in a robotic arm system.
 
-Full Report: [Click Here](Comparative Analysis of Machine Learning Methods for Enhancing Intuitive Control of Upper-Limb Prosthetics.pdf)
+Full report (PDF): [open on GitHub](https://github.com/MarcoSchapira/EEG-Machine-Learning-Model-Comparison/blob/main/Comparative%20Analysis%20of%20Machine%20Learning%20Methods%20for%20Enhancing%20Intuitive%20Control%20of%20Upper-Limb%20Prosthetics.pdf)
 Key Result: 76% (subject-dependent EEG), 54% (subject-independent EEG)
 
 ## Authors
@@ -196,32 +196,29 @@ These metrics are used to account for class imbalance and provide a more complet
 
 ## File Structure
 
+```text
 .
 ├── training/
 │   ├── train_subject_dependent.py
-│   ├── train_loso.py
-│   ├── utils/
-│   └── models/
-│       ├── tcnet.py
-│       ├── mscformer.py
-│       ├── eegencoder.py
-│       └── emg_models/
-│
+│   └── train_loso.py
+├── utils/
+├── models/
+│   ├── tcnet.py
+│   ├── mscformer.py
+│   └── eegencoder.py
+├── emg_models/
 ├── evaluation/
 │   ├── evaluate.py
 │   └── metrics.py
-│
 ├── data/
 │   ├── processed_pt/
 │   └── raw/
-│
 ├── visualization/
 │   └── plots.py
-│
 ├── scripts/
 │   └── preprocessing.py
-│
 └── README.md
+```
 
 ---
 
@@ -233,7 +230,7 @@ These metrics are used to account for class imbalance and provide a more complet
   author    = {Branigan, Leo and Wilkinson, Thomas and Schapira, Marco and Malcom, Ben},
   year      = {2024},
   note      = {Project Report, Queen's University},
-  url       = [Click Here](https://github.com/MarcoSchapira/EEG-Machine-Learning-Model-Comparison/blob/main/Comparative%20Analysis%20of%20Machine%20Learning%20Methods%20for%20Enhancing%20Intuitive%20Control%20of%20Upper-Limb%20Prosthetics.pdf)
+  url       = {https://github.com/MarcoSchapira/EEG-Machine-Learning-Model-Comparison/blob/main/Comparative%20Analysis%20of%20Machine%20Learning%20Methods%20for%20Enhancing%20Intuitive%20Control%20of%20Upper-Limb%20Prosthetics.pdf},
 }
 ```
 
