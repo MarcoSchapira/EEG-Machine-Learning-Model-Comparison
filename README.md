@@ -21,6 +21,8 @@ Supervisor: Dr. Xian Wang
 
 ---
 
+
+
 ## Overview
 
 Upper-limb prosthetics often lack intuitive control. This project explores whether neural signals can improve control by:
@@ -33,6 +35,8 @@ Upper-limb prosthetics often lack intuitive control. This project explores wheth
 The system integrates machine learning models with a robotic control pipeline to simulate prosthetic use on a representative device.
 
 ---
+
+
 
 ## System Architecture
 
@@ -48,7 +52,11 @@ The representative prosthetic was an Elephant Robotics **myCobot 280** (6-DOF) w
 
 ---
 
+
+
 ## Dataset
+
+
 
 ### Source Dataset
 
@@ -63,6 +71,8 @@ The representative prosthetic was an Elephant Robotics **myCobot 280** (6-DOF) w
 - Only **real movement** trials were used (not motor imagery)
 - Subject-independent split: train on 24 subjects, test on 1
 
+
+
 ### Custom Data
 
 - 1 subject; 32-electrode EEG cap (**27 electrodes** used to align with non-EOG channels)
@@ -71,38 +81,52 @@ The representative prosthetic was an Elephant Robotics **myCobot 280** (6-DOF) w
 
 ---
 
+
+
 ## Models
+
+
 
 ### EEG Models
 
 Selected for varied strengths and edge-deployment cost (parameter count and MMACs per inference), with BCI Competition IV-2a as a published benchmark:
 
-| Model | Trainable parameters | MMACs / inference | BCI IV-2a subject-independent | BCI IV-2a subject-dependent |
-| ----- | -------------------- | ----------------- | ----------------------------- | --------------------------- |
-| **EEG-TCNet** (Ingolfsson et al., 2020) | 4,272 | 6.8 | 77.35% | 83.84% |
-| **MSCFormer** (Zhao et al., 2025) | 236,220 | 90.26 | 82.95% | — |
-| **EEGEncoder** (Liao, 2024) | 180,000 | 22.5 | 74.48% | 86.46% |
+
+| Model                                   | Trainable parameters | MMACs / inference | BCI IV-2a subject-independent | BCI IV-2a subject-dependent |
+| --------------------------------------- | -------------------- | ----------------- | ----------------------------- | --------------------------- |
+| **EEG-TCNet** (Ingolfsson et al., 2020) | 4,272                | 6.8               | 77.35%                        | 83.84%                      |
+| **MSCFormer** (Zhao et al., 2025)       | 236,220              | 90.26             | 82.95%                        | —                           |
+| **EEGEncoder** (Liao, 2024)             | 180,000              | 22.5              | 74.48%                        | 86.46%                      |
+
 
 - EEG-TCNet: lightweight temporal convolutional network
 - MSCFormer: multi-scale convolutional transformer; strong published generalization
 - EEGEncoder: parallel dual-stream temporal-spatial structure; robustness to noise/artifacts
 
+
+
 ### EMG Models
 
 Custom multi-task architectures (classification + multivariate regression to 7 outputs: 6 joint angles + gripper), with Tanh-bounded regression outputs:
 
-| Model | Trainable parameters | MMACs / inference |
-| ----- | -------------------- | ----------------- |
-| Adaptive Transformer | 87,795 | 12.8 |
-| Multi-Scale 1D CNN | 129,395 | 1.95 |
-| ResNet-18 (Spectrogram / STFT) | 11,195,667 | 83.2 |
-| Multi-Head TCN-LSTM | 254,195 | 26.4 |
+
+| Model                          | Trainable parameters | MMACs / inference |
+| ------------------------------ | -------------------- | ----------------- |
+| Adaptive Transformer           | 87,795               | 12.8              |
+| Multi-Scale 1D CNN             | 129,395              | 1.95              |
+| ResNet-18 (Spectrogram / STFT) | 11,195,667           | 83.2              |
+| Multi-Head TCN-LSTM            | 254,195              | 26.4              |
+
 
 **Multi-Head TCN-LSTM** was the best-performing EMG model overall.
 
 ---
 
+
+
 ## Training
+
+
 
 ### EEG Training
 
@@ -112,48 +136,62 @@ Custom multi-task architectures (classification + multivariate regression to 7 o
 - Closely related classes were later consolidated (e.g. wrist twist motions; grasp variants) to form a **9-class** setting from the original **11-movement (+ rest)** labeling
 - Metrics: Accuracy, Precision, Recall, F1-score, Cohen’s Kappa
 
-| Component | Subject-dependent | Subject-independent (LOSO) |
-| --------- | ----------------- | -------------------------- |
-| Training data | Single subject | 24 subjects train / 1 test |
-| Cross-validation | 5-fold on the 90% train/val pool (10% held out for final test) | None |
-| Epoch selection | Average best epoch across folds, then final production train on the full 90% pool | Direct training with validation |
-| Early stopping | Monitors validation loss (max 1000 epochs) | Patience = 5 |
-| Observed convergence | — | Often within ~4 epochs |
+
+| Component            | Subject-dependent                                                                 | Subject-independent (LOSO)      |
+| -------------------- | --------------------------------------------------------------------------------- | ------------------------------- |
+| Training data        | Single subject                                                                    | 24 subjects train / 1 test      |
+| Cross-validation     | 5-fold on the 90% train/val pool (10% held out for final test)                    | None                            |
+| Epoch selection      | Average best epoch across folds, then final production train on the full 90% pool | Direct training with validation |
+| Early stopping       | Monitors validation loss (max 1000 epochs)                                        | Patience = 5                    |
+| Observed convergence | —                                                                                 | Often within ~4 epochs          |
+
+
+
 
 ### EMG Training
 
-- Multi-task learning: Cross-Entropy (classification) + Huber Loss (regression), total loss \(L_{cls} + \lambda L_{reg}\) with \(\lambda = 100\)
+- Multi-task learning: Cross-Entropy (classification) + Huber Loss (regression), total loss L_{cls} + \lambda L_{reg} with \lambda = 100
 - Sliding window: **200 ms** window, **50 ms** stride over each 4-second trial
 - Best scaling setup: **z-score** normalization, no feature extraction
 - During inference, if rest softmax probability exceeds **80%**, regression outputs are masked to keep the arm still
 
 ---
 
+
+
 ## Results
+
+
 
 ### EEG Classification — 11 Classes (before class consolidation)
 
 Subject-dependent results for subject 1 (male), trained and tested before related classes were merged:
 
-| Metric | EEG-TCNet | MSCFormer | EEGEncoder |
-| ------ | --------- | --------- | ---------- |
-| Accuracy | 63.44% | 65.26% | **72.81%** |
-| Precision | 42.97% | 45.98% | 57.54% |
-| Recall | 49.45% | 50.26% | 62.63% |
-| F1-Score | 44.74% | 47.04% | 58.78% |
-| Kappa | 52.10% | 54.47% | 63.98% |
+
+| Metric    | EEG-TCNet | MSCFormer | EEGEncoder |
+| --------- | --------- | --------- | ---------- |
+| Accuracy  | 63.44%    | 65.26%    | **72.81%** |
+| Precision | 42.97%    | 45.98%    | 57.54%     |
+| Recall    | 49.45%    | 50.26%    | 62.63%     |
+| F1-Score  | 44.74%    | 47.04%    | 58.78%     |
+| Kappa     | 52.10%    | 54.47%    | 63.98%     |
+
+
+
 
 ### EEG Classification — 9 Classes (after class consolidation)
 
 Subject-dependent results for subject 1 after combining closely related classes:
 
-| Metric | EEG-TCNet | MSCFormer | EEGEncoder |
-| ------ | --------- | --------- | ---------- |
-| Accuracy | 70.69% | 74.32% | **76.43%** |
-| Precision | 52.57% | 51.44% | 57.82% |
-| Recall | 59.51% | 57.92% | 61.40% |
-| F1-Score | 54.56% | 53.22% | 58.67% |
-| Kappa | 61.51% | 65.54% | 68.10% |
+
+| Metric    | EEG-TCNet | MSCFormer | EEGEncoder |
+| --------- | --------- | --------- | ---------- |
+| Accuracy  | 70.69%    | 74.32%    | **76.43%** |
+| Precision | 52.57%    | 51.44%    | 57.82%     |
+| Recall    | 59.51%    | 57.92%    | 61.40%     |
+| F1-Score  | 54.56%    | 53.22%    | 58.67%     |
+| Kappa     | 61.51%    | 65.54%    | 68.10%     |
+
 
 Additional subject-dependent 9-class results across subjects 1, 2, 7, and 9 are in the report appendix (Table 12). Accuracy varied more between subjects (up to **7.88%**) than between models for the same subject (up to **5.74%**).
 
@@ -161,63 +199,80 @@ Additional subject-dependent 9-class results across subjects 1, 2, 7, and 9 are 
 
 Trained on subjects 2–25, tested on subject 1:
 
-| Nodes | Metric | EEG-TCNet | MSCFormer | EEGEncoder |
-| ----- | ------ | --------- | --------- | ---------- |
-| 27 | Accuracy | 35.30% | 48.26% | **54.04%** |
-| 27 | Precision | 15.96% | 20.92% | 28.18% |
-| 27 | Recall | 17.73% | 15.56% | 18.94% |
-| 27 | F1-Score | 14.50% | 12.28% | 19.27% |
-| 27 | Kappa | 15.42% | 10.70% | 21.21% |
-| 60 | Accuracy | 46.19% | 49.98% | **50.77%** |
-| 60 | Precision | 14.10% | 5.56% | 24.32% |
-| 60 | Recall | 16.11% | 11.11% | 15.95% |
-| 60 | F1-Score | 12.59% | 7.41% | 14.22% |
-| 60 | Kappa | 15.66% | 0.02% | 14.49% |
+
+**27 nodes**
+
+| Metric    | EEG-TCNet | MSCFormer | EEGEncoder |
+| --------- | --------- | --------- | ---------- |
+| Accuracy  | 35.30%    | 48.26%    | **54.04%** |
+| Precision | 15.96%    | 20.92%    | 28.18%     |
+| Recall    | 17.73%    | 15.56%    | 18.94%     |
+| F1-Score  | 14.50%    | 12.28%    | 19.27%     |
+| Kappa     | 15.42%    | 10.70%    | 21.21%     |
+
+**60 nodes**
+
+| Metric    | EEG-TCNet | MSCFormer | EEGEncoder |
+| --------- | --------- | --------- | ---------- |
+| Accuracy  | 46.19%    | 49.98%    | **50.77%** |
+| Precision | 14.10%    | 5.56%     | 24.32%     |
+| Recall    | 16.11%    | 11.11%    | 15.95%     |
+| F1-Score  | 12.59%    | 7.41%     | 14.22%     |
+| Kappa     | 15.66%    | 0.02%     | 14.49%     |
+
+
+
 
 ### EEG Validation on Custom Lab Data (27-node models)
 
-All models performed poorly on the team-collected dataset (environmental mismatch vs. the public dataset). Accuracy excluding rest:
+All models performed poorly on the team-collected dataset (environmental mismatch vs. the public dataset). 
 
-| Model | Accuracy (excl. rest) |
-| ----- | --------------------- |
-| EEG-TCNet | 12.26% |
-| EEGEncoder | 0.00% |
-| MSCFormer | 14.84% |
+
 
 ### EMG Classification
 
 Subject-independent initial results (all proposed models):
 
-| Model | Accuracy | Cross-Entropy Loss | Huber Loss |
-| ----- | -------- | ------------------ | ---------- |
-| Adaptive Transformer | 10.54% | 2.6682 | 0.0166 |
-| Multi-Scale 1D CNN | 28.71% | 2.0516 | 0.0137 |
-| ResNet-18 Spectrogram | 13.01% | — (early stop / overfitting) | — |
-| Multi-Head TCN-LSTM | **32.05%** | 2.0058 | 0.0135 |
+
+| Model                 | Accuracy   | Cross-Entropy Loss           | Huber Loss |
+| --------------------- | ---------- | ---------------------------- | ---------- |
+| Adaptive Transformer  | 10.54%     | 2.6682                       | 0.0166     |
+| Multi-Scale 1D CNN    | 28.71%     | 2.0516                       | 0.0137     |
+| ResNet-18 Spectrogram | 13.01%     | — (early stop / overfitting) | —          |
+| Multi-Head TCN-LSTM   | **32.05%** | 2.0058                       | 0.0135     |
+
 
 Multi-Head TCN-LSTM, subject-independent, by EMG node count:
 
+
 | Nodes | Accuracy | Cross-Entropy Loss | Huber Loss |
 | ----- | -------- | ------------------ | ---------- |
-| 6 | 30.97% | 2.0037 | 0.0135 |
-| 4 | 27.79% | 2.0652 | 0.0140 |
-| 2 | 19.92% | 2.2880 | 0.0156 |
+| 6     | 30.97%   | 2.0037             | 0.0135     |
+| 4     | 27.79%   | 2.0652             | 0.0140     |
+| 2     | 19.92%   | 2.2880             | 0.0156     |
+
 
 Subject-dependent Multi-Head TCN-LSTM (6 nodes): **37.66%** accuracy.
 
 Retrained on the three most distinct classes (arm-reaching backwards, arm-reaching leftwards, hand-grasping a ball):
 
-| Nodes | Accuracy |
-| ----- | -------- |
-| 6 | **72.81%** |
-| 4 | 71.30% |
-| 2 | 55.39% |
+
+| Nodes | Accuracy   |
+| ----- | ---------- |
+| 6     | **72.81%** |
+| 4     | 71.30%     |
+| 2     | 55.39%     |
+
+
+
 
 ### Robotic Arm Control
 
 EEG and EMG models ran on the myCobot 280 with no noticeable delay. EMG regression struggled to map moving joints accurately despite low Huber loss: near-zero (stationary) joints were easy to predict, while joints that needed to move did not stay within the ~4–9° error suggested by the loss.
 
 ---
+
+
 
 ## Key Findings
 
@@ -231,6 +286,8 @@ EEG and EMG models ran on the myCobot 280 with no noticeable delay. EMG regressi
 
 ---
 
+
+
 ## Reproducibility
 
 - Fixed random seed
@@ -240,6 +297,8 @@ EEG and EMG models ran on the myCobot 280 with no noticeable delay. EMG regressi
 
 ---
 
+
+
 ## Acknowledgements
 
 - Dr. Xian Wang (Supervisor)
@@ -247,6 +306,8 @@ EEG and EMG models ran on the myCobot 280 with no noticeable delay. EMG regressi
 - Graziella Bedenik (methodology and project supervision)
 
 ---
+
+
 
 ## File Structure
 
@@ -289,6 +350,8 @@ EEG and EMG models ran on the myCobot 280 with no noticeable delay. EMG regressi
 
 ---
 
+
+
 ## Citation
 
 ```bibtex
@@ -300,3 +363,4 @@ EEG and EMG models ran on the myCobot 280 with no noticeable delay. EMG regressi
   url       = {https://github.com/MarcoSchapira/EEG-Machine-Learning-Model-Comparison/blob/main/Comparative%20Analysis%20of%20Machine%20Learning%20Methods%20for%20Enhancing%20Intuitive%20Control%20of%20Upper-Limb%20Prosthetics.pdf},
 }
 ```
+
